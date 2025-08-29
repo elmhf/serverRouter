@@ -1,0 +1,279 @@
+{
+  "patientId": "PT-2024-4821",
+  "info": {
+    "FullName": "Sarah Ben Youssef",
+    "DateB": "22 Sep 1992",
+    "Age": "31",
+    "ScanD": "2024-06-10T09:30:00.000Z",
+    "Gender": "woman"
+  },
+  "JAw": {
+    "upperJaw": {
+      "mask": [
+        [400, 410], [370, 430], [390, 600], [520, 700], [600, 710],
+        [730, 715], [850, 720], [980, 715], [1100, 710], [1250, 705],
+        [1400, 690], [1520, 690], [1600, 660], [1630, 620], [1670, 530],
+        [1660, 450], [1750, 340], [1880, 330], [1980, 325], [1990, 360],
+        [1970, 420], [1975, 490], [1960, 590], [1970, 670], [1940, 750],
+        [1900, 790], [1800, 800], [1680, 820]
+      ]
+    },
+    "lowerJaw": {
+      "mask": [
+        [430, 870], [500, 900], [580, 920], [670, 935], [770, 945],
+        [880, 950], [990, 952], [1100, 950], [1210, 945], [1320, 935],
+        [1430, 920], [1540, 900], [1640, 870], [1700, 840], [1740, 800],
+        [1760, 760], [1770, 720], [1765, 680], [1755, 640], [1740, 600],
+        [1720, 570], [1690, 550], [1650, 540], [1600, 535], [1540, 538],
+        [1480, 545], [1420, 555], [1360, 570]
+      ]
+    }
+  },
+  "scan": {
+    "dimensions": {
+      "width": 1080,
+      "height": 1060
+    },
+    "scanDate": "2024-06-10T09:30:00.000Z",
+    "scanType": "Dental X-ray"
+  },
+  "problemDetective": [
+    "Caries", "Fracture", "Abscess"
+  ],
+  "teeth": [
+    {
+      "toothNumber": 16,
+      "category": "Unhealthy",
+      "position": { "x": 520, "y": 340 },
+      "problems": [
+        {
+          "type": "Caries",
+          "subtype": "Proximal",
+          "coordinates": { "x": 530, "y": 350 },
+          "mask": [[540, 360], [550, 370], [560, 365], [555, 355], [545, 350]],
+          "depth": "1.8mm",
+          "severity": "Mild",
+          "confidence": 0.89,
+          "detectedAt": "2024-06-10T09:35:00",
+          "progression": "Early",
+          "images": ["/images/caries_16_1.png"]
+        },
+        {
+          "type": "Fracture",
+          "subtype": "Enamel",
+          "coordinates": { "x": 535, "y": 355 },
+          "mask": [[542, 362], [548, 368], [552, 362], [546, 356]],
+          "severity": "Mild",
+          "confidence": 0.87,
+          "detectedAt": "2024-06-10T09:40:00",
+          "progression": "Stable",
+          "images": ["/images/fracture_16_2.png"]
+        }
+      ],
+      "boundingBox": [
+        [510, 320], [550, 320], [550, 370], [510, 370]
+      ],
+      "teeth_mask": [
+        [515, 330], [525, 325], [540, 330], [548, 340], [550, 355], [545, 365], [535, 368], [520, 360], [512, 350], [510, 340]
+      ],
+      "Endo": {
+        "mask": [
+          [520, 340], [525, 350], [530, 355], [535, 350], [530, 345], [525, 342]
+        ]
+      },
+      "Root": {
+        "mask": [
+          [530, 370], [535, 375], [540, 380], [545, 375], [540, 370], [535, 368]
+        ]
+      },
+      "Crown": {
+        "mask": [
+          [515, 330], [525, 325], [540, 330], [548, 340], [545, 350], [535, 345], [520, 340]
+        ]
+      },
+      "gumHealth": "Healthy",
+      "lastCheckup": "2023-12-01T11:00:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 26,
+      "category": "Treated",
+      "position": { "x": 620, "y": 340 },
+      "problems": [
+        {
+          "type": "Fracture",
+          "subtype": "Cusp",
+          "coordinates": { "x": 630, "y": 350 },
+          "mask": [[635, 355], [640, 360], [645, 355], [640, 350]],
+          "severity": "Moderate",
+          "confidence": 0.92,
+          "detectedAt": "2024-06-10T09:36:00",
+          "progression": "Stable",
+          "images": ["/images/fracture_26_1.png"]
+        }
+      ],
+      "boundingBox": [
+        [610, 320], [650, 320], [650, 370], [610, 370]
+      ],
+      "teeth_mask": [
+        [615, 330], [625, 325], [640, 330], [648, 340], [650, 355], [645, 365], [635, 368], [620, 360], [612, 350], [610, 340]
+      ],
+      "gumHealth": "Mild Inflammation",
+      "lastCheckup": "2024-01-15T10:30:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 36,
+      "category": "Unhealthy",
+      "position": { "x": 720, "y": 340 },
+      "problems": [
+        {
+          "type": "Abscess",
+          "subtype": "Periapical",
+          "coordinates": { "x": 730, "y": 350 },
+          "mask": [[735, 355], [740, 360], [745, 355], [740, 350]],
+          "severity": "Severe",
+          "confidence": 0.96,
+          "detectedAt": "2024-06-10T09:37:00",
+          "progression": "Worsening",
+          "images": ["/images/abscess_36_1.png"]
+        }
+      ],
+      "boundingBox": [
+        [710, 320], [750, 320], [750, 370], [710, 370]
+      ],
+      "teeth_mask": [
+        [715, 330], [725, 325], [740, 330], [748, 340], [750, 355], [745, 365], [735, 368], [720, 360], [712, 350], [710, 340]
+      ],
+      "gumHealth": "Severe Inflammation",
+      "lastCheckup": "2024-03-20T09:00:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 11,
+      "category": "Healthy",
+      "position": { "x": 820, "y": 340 },
+      "problems": [],
+      "boundingBox": [
+        [810, 320], [850, 320], [850, 370], [810, 370]
+      ],
+      "teeth_mask": [
+        [815, 330], [825, 325], [840, 330], [848, 340], [850, 355], [845, 365], [835, 368], [820, 360], [812, 350], [810, 340]
+      ],
+      "gumHealth": "Healthy",
+      "lastCheckup": "2024-05-10T14:00:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 21,
+      "category": "Missing",
+      "position": { "x": 920, "y": 340 },
+      "problems": [],
+      "boundingBox": [
+        [910, 320], [950, 320], [950, 370], [910, 370]
+      ],
+      "teeth_mask": [],
+      "gumHealth": "N/A",
+      "lastCheckup": "2023-11-10T10:15:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 46,
+      "category": "Unhealthy",
+      "position": { "x": 1020, "y": 340 },
+      "problems": [
+        {
+          "type": "Caries",
+          "subtype": "Occlusal",
+          "coordinates": { "x": 1030, "y": 350 },
+          "mask": [[1035, 355], [1040, 360], [1045, 355], [1040, 350]],
+          "depth": "2.3mm",
+          "severity": "Medium",
+          "confidence": 0.91,
+          "detectedAt": "2024-06-10T09:38:00",
+          "progression": "Stable",
+          "images": ["/images/caries_46_1.png"]
+        }
+      ],
+      "boundingBox": [
+        [1010, 320], [1050, 320], [1050, 370], [1010, 370]
+      ],
+      "teeth_mask": [
+        [1015, 330], [1025, 325], [1040, 330], [1048, 340], [1050, 355], [1045, 365], [1035, 368], [1020, 360], [1012, 350], [1010, 340]
+      ],
+      "gumHealth": "Mild Inflammation",
+      "lastCheckup": "2024-02-18T13:00:00",
+      "roots": 2,
+      "canals": 3
+    }
+  ],
+  "statistics": {
+    "healthy": 1,
+    "treated": 1,
+    "unhealthy": 3,
+    "missing": 1,
+    "problemDistribution": {
+      "caries": 2,
+      "fractures": 1,
+      "abscesses": 1
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "High",
+      "actions": [
+        {
+          "description": "Immediate treatment of periapical abscess on tooth #36",
+          "costEstimate": "$1500",
+          "duration": "2.5 hours",
+          "resources": [
+            {
+              "type": "Article",
+              "title": "Managing Dental Abscesses: Clinical Guidelines",
+              "url": "https://example.com/abscess-guidelines"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "priority": "Medium",
+      "actions": [
+        {
+          "description": "Restorative filling for caries on teeth #16 and #46",
+          "costEstimate": "$400",
+          "duration": "1 hour",
+          "resources": [
+            {
+              "type": "Video",
+              "title": "Modern Caries Treatment Techniques",
+              "url": "https://example.com/caries-video"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "priority": "Low",
+      "actions": [
+        {
+          "description": "Monitor treated fracture on tooth #26 during next checkup",
+          "costEstimate": "$0",
+          "duration": "10 min",
+          "resources": [
+            {
+              "type": "Article",
+              "title": "Dental Fracture Follow-up",
+              "url": "https://example.com/fracture-followup"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+} 

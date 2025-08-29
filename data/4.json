@@ -1,0 +1,1821 @@
+{
+    "patientId": "PT-2024-3745",
+    "info": {
+      "FullName": "John Doe",
+      "DateB": "15 Apr 1985",
+      "Age": "39",
+      "ScanD": "2025-03-14T12:45:00.123456",
+      "Gender": "man"
+    },  "JAw":{  "upperJaw": {
+    "mask": [
+      [379, 404], [355, 419], [370, 580], [505, 680], [565, 693],
+      [710, 697], [815, 714], [946, 712], [1035, 708], [1200, 702],
+      [1348, 685], [1474, 685], [1545, 657], [1577, 616], [1622, 522],
+      [1613, 437], [1716, 321], [1848, 314], [1955, 308], [1960, 340],
+      [1938, 400], [1940, 466], [1925, 569], [1934, 659], [1902, 734],
+      [1866, 775], [1771, 781], [1650, 807]
+    ]
+  },
+  "lowerJaw": {
+    "mask": [
+
+      [420, 850],   
+      [480, 880],
+      [550, 900],
+      [630, 915],
+      [720, 925],
+      [820, 930],
+      [920, 932],
+      [1020, 930],
+      [1120, 925],
+      [1220, 915],
+      [1320, 900],
+      [1420, 880],
+      [1520, 850],
+      [1580, 820],
+      [1620, 780],
+      [1640, 740],
+      [1650, 700],
+      [1645, 660],
+      [1635, 620],
+      [1620, 580],
+      [1600, 550],
+      [1570, 530],
+      [1530, 520],
+      [1480, 515],
+      [1420, 518],
+      [1360, 525],
+      [1300, 535],
+      [1240, 550]    
+    ]
+  }},
+    "scan": {
+      "dimensions": {
+        "width": 1080,
+        "height": 1060
+      },
+      "scanDate": "2025-03-14T12:45:00.123456",
+      "scanType": "Dental X-ray"
+    },
+    "problemDetective": [
+      "Caries"
+    ],
+    "teeth": [
+      {
+        "toothNumber": 31,
+        "category": "Unhealthy",
+        "position": {
+          "x": 450,
+          "y": 320
+        },      "Endo":{
+          "mask":[
+            [555, 399],
+            [565, 438],
+            [567, 463],
+            [582, 482],
+            [578, 486],
+            [561, 486],
+            [545, 458],
+            [542, 424],
+            [537, 392],
+            [552, 382]
+          ]
+        },
+        "Root":{
+          "mask":[
+            [602, 456],
+            [575, 376],
+            [560, 358],
+            [521, 363],
+            [517, 383],
+            [521, 410],
+            [526, 430],
+            [533, 447],
+            [535, 472],
+            [557, 478],
+            [580, 470],
+            [614, 470],
+            [605, 457]
+          ]
+          
+        },
+        "Crown":{
+          "mask":[
+            [603, 469],
+            [586, 468],
+            [555, 479],
+            [533, 473],
+            [527, 492],
+            [527, 516],
+            [536, 535],
+            [552, 548],
+            [573, 540],
+            [595, 545],
+            [615, 538],
+            [627, 528],
+            [626, 506],
+            [613, 476]
+          ]
+        },
+        "boundingBox": [
+          [
+            631,
+            352
+          ],
+          [
+            769,
+            352
+          ],
+          [
+            769,
+            577
+          ],
+          [
+            631,
+            577
+          ]
+        ],
+        "teeth_mask": [
+          [
+            691,
+            416
+          ],
+          [
+            693,
+            385
+          ],
+          [
+            726,
+            387
+          ],
+          [
+            750,
+            394
+          ],
+          [
+            750,
+            440
+          ],
+          [
+            746,
+            479
+          ],
+          [
+            737,
+            492
+          ],
+          [
+            733,
+            514
+          ],
+          [
+            728,
+            547
+          ],
+          [
+            720,
+            569
+          ],
+          [
+            698,
+            562
+          ],
+          [
+            674,
+            553
+          ],
+          [
+            645,
+            545
+          ],
+          [
+            637,
+            540
+          ],
+          [
+            645,
+            510
+          ],
+          [
+            667,
+            475
+          ],
+          [
+            689,
+            433
+          ]
+        ],
+        "problems": [
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                664,
+                482
+              ],
+              [
+                682,
+                439
+              ],
+              [
+                698,
+                439
+              ],
+              [
+                696,
+                470
+              ],
+              [
+                672,
+                510
+              ],
+              [
+                660,
+                511
+              ],
+              [
+                652,
+                504
+              ],
+              [
+                667,
+                476
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                709,
+                455
+              ],
+              [
+                742,
+                466
+              ],
+              [
+                742,
+                503
+              ],
+              [
+                728,
+                514
+              ],
+              [
+                680,
+                501
+              ],
+              [
+                678,
+                468
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                554,
+                524
+              ],
+              [
+                583,
+                502
+              ],
+              [
+                628,
+                502
+              ],
+              [
+                629,
+                510
+              ],
+              [
+                620,
+                537
+              ],
+              [
+                583,
+                547
+              ],
+              [
+                552,
+                527
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          }
+        ],
+        "gumHealth": "Mild Inflammation",
+        "lastCheckup": "2023-11-10T10:15:00",
+        "roots": 2,
+        "canals": 3
+      },
+      {
+        "toothNumber": 21,
+        "category": "Unhealthy",
+        "position": {
+          "x": 450,
+          "y": 320
+        },
+        "boundingBox": [
+          [
+            631,
+            352
+          ],
+          [
+            769,
+            352
+          ],
+          [
+            769,
+            577
+          ],
+          [
+            631,
+            577
+          ]
+        ],
+        "teeth_mask": [
+          [
+            691,
+            416
+          ],
+          [
+            693,
+            385
+          ],
+          [
+            726,
+            387
+          ],
+          [
+            750,
+            394
+          ],
+          [
+            750,
+            440
+          ],
+          [
+            728,
+            547
+          ],
+          [
+            720,
+            569
+          ],
+          [
+            698,
+            562
+          ],
+          [
+            674,
+            553
+          ],
+          [
+            645,
+            545
+          ],
+          [
+            637,
+            540
+          ],
+          [
+            645,
+            510
+          ],
+          [
+            667,
+            475
+          ],
+          [
+            689,
+            433
+          ]
+        ],
+        "problems": [
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                650,
+                483
+              ],
+              [
+                672,
+                508
+              ],
+              [
+                702,
+                532
+              ],
+              [
+                693,
+                549
+              ],
+              [
+                663,
+                569
+              ],
+              [
+                650,
+                549
+              ],
+              [
+                632,
+                532
+              ],
+              [
+                641,
+                488
+              ],
+              [
+                652,
+                479
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                709,
+                455
+              ],
+              [
+                742,
+                466
+              ],
+              [
+                742,
+                503
+              ],
+              [
+                728,
+                514
+              ],
+              [
+                680,
+                501
+              ],
+              [
+                678,
+                468
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          }
+        ],
+        "gumHealth": "Mild Inflammation",
+        "lastCheckup": "2023-11-10T10:15:00",
+        "roots": 2,
+        "canals": 3
+      },
+      {
+        "toothNumber": 11,
+        "category": "Unhealthy",
+        "position": {
+          "x": 450,
+          "y": 320
+        },
+        "boundingBox": [
+          [
+            631,
+            352
+          ],
+          [
+            769,
+            352
+          ],
+          [
+            769,
+            577
+          ],
+          [
+            631,
+            577
+          ]
+        ],
+        "teeth_mask": [
+          [
+            726,
+            387
+          ],
+          [
+            750,
+            394
+          ],
+          [
+            750,
+            440
+          ],
+          [
+            746,
+            479
+          ],
+          [
+            737,
+            492
+          ],
+          [
+            733,
+            514
+          ],
+          [
+            728,
+            547
+          ],
+          [
+            720,
+            569
+          ],
+          [
+            698,
+            562
+          ],
+          [
+            689,
+            433
+          ]
+        ],
+        "problems": [
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                650,
+                483
+              ],
+              [
+                672,
+                508
+              ],
+              [
+                702,
+                532
+              ],
+              [
+                693,
+                549
+              ],
+              [
+                663,
+                569
+              ],
+              [
+                650,
+                549
+              ],
+              [
+                632,
+                532
+              ],
+              [
+                641,
+                488
+              ],
+              [
+                652,
+                479
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                709,
+                455
+              ],
+              [
+                742,
+                466
+              ],
+              [
+                742,
+                503
+              ],
+              [
+                728,
+                514
+              ],
+              [
+                680,
+                501
+              ],
+              [
+                678,
+                468
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          }
+        ],
+        "gumHealth": "Mild Inflammation",
+        "lastCheckup": "2023-11-10T10:15:00",
+        "roots": 2,
+        "canals": 3
+      },
+      {
+        "toothNumber": 41,
+        "category": "Unhealthy",
+        "position": {
+          "x": 450,
+          "y": 320
+        },
+        "boundingBox": [
+          [
+            631,
+            352
+          ],
+          [
+            769,
+            352
+          ],
+          [
+            769,
+            577
+          ],
+          [
+            631,
+            577
+          ]
+        ],
+        "teeth_mask": [
+          [
+            726,
+            387
+          ],
+          [
+            750,
+            394
+          ],
+          [
+            750,
+            440
+          ],
+          [
+            746,
+            479
+          ],
+          [
+            737,
+            492
+          ],
+          [
+            733,
+            514
+          ],
+          [
+            728,
+            547
+          ],
+          [
+            720,
+            569
+          ],
+          [
+            698,
+            562
+          ],
+          [
+            689,
+            433
+          ]
+        ],
+        "problems": [
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                650,
+                483
+              ],
+              [
+                672,
+                508
+              ],
+              [
+                702,
+                532
+              ],
+              [
+                693,
+                549
+              ],
+              [
+                663,
+                569
+              ],
+              [
+                650,
+                549
+              ],
+              [
+                632,
+                532
+              ],
+              [
+                641,
+                488
+              ],
+              [
+                652,
+                479
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                709,
+                455
+              ],
+              [
+                742,
+                466
+              ],
+              [
+                742,
+                503
+              ],
+              [
+                728,
+                514
+              ],
+              [
+                680,
+                501
+              ],
+              [
+                678,
+                468
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          }
+        ],
+        "gumHealth": "Mild Inflammation",
+        "lastCheckup": "2023-11-10T10:15:00",
+        "roots": 2,
+        "canals": 3
+      },
+      {
+        "toothNumber": 42,
+        "category": "Unhealthy",
+        "position": {
+          "x": 450,
+          "y": 320
+        },
+        "boundingBox": [
+          [
+            631,
+            352
+          ],
+          [
+            769,
+            352
+          ],
+          [
+            769,
+            577
+          ],
+          [
+            631,
+            577
+          ]
+        ],
+        "teeth_mask": [
+          [
+            726,
+            387
+          ],
+          [
+            750,
+            394
+          ],
+          [
+            750,
+            440
+          ],
+          [
+            746,
+            479
+          ],
+          [
+            737,
+            492
+          ],
+          [
+            733,
+            514
+          ],
+          [
+            728,
+            547
+          ],
+          [
+            720,
+            569
+          ],
+          [
+            698,
+            562
+          ],
+          [
+            689,
+            433
+          ]
+        ],
+        "problems": [
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                650,
+                483
+              ],
+              [
+                672,
+                508
+              ],
+              [
+                702,
+                532
+              ],
+              [
+                693,
+                549
+              ],
+              [
+                663,
+                569
+              ],
+              [
+                650,
+                549
+              ],
+              [
+                632,
+                532
+              ],
+              [
+                641,
+                488
+              ],
+              [
+                652,
+                479
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                709,
+                455
+              ],
+              [
+                742,
+                466
+              ],
+              [
+                742,
+                503
+              ],
+              [
+                728,
+                514
+              ],
+              [
+                680,
+                501
+              ],
+              [
+                678,
+                468
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          }
+        ],
+        "gumHealth": "Mild Inflammation",
+        "lastCheckup": "2023-11-10T10:15:00",
+        "roots": 2,
+        "canals": 3
+      },
+
+      {
+        "toothNumber": 43,
+        "category": "Unhealthy",
+        "position": {
+          "x": 450,
+          "y": 320
+        },
+        "boundingBox": [
+          [
+            1016,
+            383
+          ],
+          [
+            1134,
+            383
+          ],
+          [
+            1134,
+            657
+          ],
+          [
+            1016,
+            657
+          ]
+        ],
+        "teeth_mask": [
+          [
+            1027,
+            471
+          ],
+          [
+            1029,
+            422
+          ],
+          [
+            1065,
+            398
+          ],
+          [
+            1085,
+            404
+          ],
+          [
+            1098,
+            511
+          ],
+          [
+            1108,
+            565
+          ],
+          [
+            1123,
+            606
+          ],
+          [
+            1127,
+            635
+          ],
+          [
+            1083,
+            655
+          ],
+          [
+            1061,
+            650
+          ],
+          [
+            1040,
+            638
+          ]
+        ],
+        "problems": [
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                650,
+                483
+              ],
+              [
+                672,
+                508
+              ],
+              [
+                702,
+                532
+              ],
+              [
+                693,
+                549
+              ],
+              [
+                663,
+                569
+              ],
+              [
+                650,
+                549
+              ],
+              [
+                632,
+                532
+              ],
+              [
+                641,
+                488
+              ],
+              [
+                652,
+                479
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                709,
+                455
+              ],
+              [
+                742,
+                466
+              ],
+              [
+                742,
+                503
+              ],
+              [
+                728,
+                514
+              ],
+              [
+                680,
+                501
+              ],
+              [
+                678,
+                468
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          },
+          {
+            "type": "Caries",
+            "subtype": "Occlusal",
+            "coordinates": {
+              "x": 460,
+              "y": 330
+            },
+            "mask": [
+              [
+                698,
+                378
+              ],
+              [
+                750,
+                389
+              ],
+              [
+                746,
+                418
+              ],
+              [
+                698,
+                435
+              ],
+              [
+                687,
+                409
+              ]
+            ],
+            "depth": "2.1mm",
+            "severity": "Medium",
+            "confidence": 0.94,
+            "detectedAt": "2023-09-12T14:22:30",
+            "progression": "Stable",
+            "images": [
+              "/images/caries_11_1.png"
+            ]
+          }
+        ],
+        "gumHealth": "Mild Inflammation",
+        "lastCheckup": "2023-11-10T10:15:00",
+        "roots": 2,
+        "canals": 3
+      }
+    ],
+    "statistics": {
+      "healthy": 8,
+      "treated": 3,
+      "unhealthy": 4,
+      "missing": 2,
+      "problemDistribution": {
+        "caries": 3,
+        "fractures": 1,
+        "abscesses": 1
+      }
+    },
+    "recommendations": [
+      {
+        "priority": "High",
+        "actions": [
+          {
+            "description": "Perform root canal treatment on tooth #11",
+            "costEstimate": "$1200",
+            "duration": "2 hours",
+            "resources": [
+              {
+                "type": "Article",
+                "title": "Root Canal Treatment: What to Expect",
+                "url": "https://example.com/article1"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }

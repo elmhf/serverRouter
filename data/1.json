@@ -1,0 +1,282 @@
+{
+  "patientId": "PT-2024-5432",
+  "JAw":{  "upperJaw": {
+    "mask": [
+      [379, 404], [355, 419], [370, 580], [505, 680], [565, 693],
+      [710, 697], [815, 714], [946, 712], [1035, 708], [1200, 702],
+      [1348, 685], [1474, 685], [1545, 657], [1577, 616], [1622, 522],
+      [1613, 437], [1716, 321], [1848, 314], [1955, 308], [1960, 340],
+      [1938, 400], [1940, 466], [1925, 569], [1934, 659], [1902, 734],
+      [1866, 775], [1771, 781], [1650, 807]
+    ]
+  },
+  "lowerJaw": {
+    "mask": [
+
+      [420, 850],   
+      [480, 880],
+      [550, 900],
+      [630, 915],
+      [720, 925],
+      [820, 930],
+      [920, 932],
+      [1020, 930],
+      [1120, 925],
+      [1220, 915],
+      [1320, 900],
+      [1420, 880],
+      [1520, 850],
+      [1580, 820],
+      [1620, 780],
+      [1640, 740],
+      [1650, 700],
+      [1645, 660],
+      [1635, 620],
+      [1620, 580],
+      [1600, 550],
+      [1570, 530],
+      [1530, 520],
+      [1480, 515],
+      [1420, 518],
+      [1360, 525],
+      [1300, 535],
+      [1240, 550]    
+    ]
+  }},
+  "info": {
+    "fullName": "Ahmed Khalid Al-Farsi",
+    "dateOfBirth": "1988-11-22",
+    "age": 35,
+    "lastScanDate": "2024-04-10T09:30:00+03:00",
+    "gender": "male",
+    "bloodType": "O+",
+    "allergies": ["Sulfa Drugs", "Iodine"],
+
+
+    "medicalHistory": [
+      {
+        "date": "2019-08-10",
+        "description": "Root canal treatment - Tooth 46",
+        "clinic": "Gulf Dental Clinic - Jeddah"
+      },
+      {
+        "date": "2022-03-15",
+        "description": "Gingivitis treatment",
+        "clinic": "Al-Noor Dental Hospital"
+      }
+    ]
+  },
+  "problemDetective":[ "Root Canal", "Periapical Abscess"],
+  "scan": {
+    "device": "Carestream CS 8100",
+    "dimensions": {
+      "width": 1400,
+      "height": 1100,
+      "resolution": "16-bit",
+      "dpi": 350
+    },
+    "scanDate": "2024-04-10T09:30:00+03:00",
+    "scanType": "Cone Beam CT",
+    "radiationDose": "9.2 μSv"
+  },
+  "teeth": [
+    {    
+
+      "toothNumber": 36,
+      "comment": "'This tooth requires immediate attention. The patient reported sensitivity to cold drinks. Recommend root canal treatment followed by crown placement.'",
+      "category": "Treated",
+      "Endo":{
+        "mask":[
+          [555, 399],
+          [565, 438],
+          [567, 463],
+          [582, 482],
+          [578, 486],
+          [561, 486],
+          [545, 458],
+          [542, 424],
+          [537, 392],
+          [552, 382]
+        ]
+      },
+      "Root":{
+        "mask":[
+          [602, 456],
+          [575, 376],
+          [560, 358],
+          [521, 363],
+          [517, 383],
+          [521, 410],
+          [526, 430],
+          [533, 447],
+          [535, 472],
+          [557, 478],
+          [580, 470],
+          [614, 470],
+          [605, 457]
+        ]
+        
+      },
+      "Crown":{
+        "mask":[
+          [603, 469],
+          [586, 468],
+          [555, 479],
+          [533, 473],
+          [527, 492],
+          [527, 516],
+          [536, 535],
+          [552, 548],
+          [573, 540],
+          [595, 545],
+          [615, 538],
+          [627, 528],
+          [626, 506],
+          [613, 476]
+        ]
+      },
+      "position": {
+        "x": 520,
+        "y": 410
+      },
+      "boundingBox": [
+        [600, 400],
+        [750, 400],
+        [750, 600],
+        [600, 600]
+      ],
+      "teeth_mask": [
+        [620, 420],
+        [730, 430],
+        [740, 550],
+        [630, 580],
+        [610, 500]
+      ],
+      "problems": [
+        {
+          "type": "Root Canal",
+          "subtype": "Treated",
+          "coordinates": {
+            "x": 530,
+            "y": 420
+          },
+          "mask": [
+            [630, 450],
+            [700, 460],
+            [710, 520],
+            [650, 540],
+            [630, 500]
+          ],
+          "status": "Successful",
+          "confidence": 0.98,
+          "treatedAt": "2019-08-10T11:00:00",
+          "images": ["/images/rc_36_1.png"]
+        }
+      ],
+      "gumHealth": "Healthy",
+      "lastCheckup": "2024-04-10T09:45:00"
+    },
+    {
+      "toothNumber": 15,
+      "category": "Pathology",
+      "position": {
+        "x": 480,
+        "y": 380
+      },
+      "boundingBox": [
+        [550, 350],
+        [700, 350],
+        [700, 550],
+        [550, 550]
+      ],
+      "teeth_mask": [
+        [560, 370],
+        [690, 380],
+        [680, 530],
+        [570, 520]
+      ],
+      "problems": [
+        {
+          "type": "Periapical Abscess",
+          "subtype": "Acute",
+          "coordinates": {
+            "x": 490,
+            "y": 390
+          },
+          "mask": [
+            [570, 400],
+            [650, 410],
+            [660, 500],
+            [580, 490]
+          ],
+          "size": "3.2mm",
+          "severity": "High",
+          "confidence": 0.96,
+          "detectedAt": "2024-04-10T09:30:00",
+          "images": ["/images/abscess_15_1.png", "/images/abscess_15_2.png"]
+        }
+      ],
+      "gumHealth": "Moderate Inflammation",
+      "lastCheckup": "2024-04-10T09:45:00"
+    }
+  ],
+  "statistics": {
+    "totalTeeth": 28,
+    "healthy": 20,
+    "treated": 3,
+    "pathology": 2,
+    "missing": 3,
+    "cariesDistribution": {
+      "active": 1,
+      "arrested": 2,
+      "recurrent": 0
+    },
+    "periodontalStatus": "Stage I Grade A"
+  },
+  "treatmentPlan": [
+    {
+      "planId": "TP-2024-5678",
+      "priority": "Urgent",
+      "procedures": [
+        {
+          "code": "D7230",
+          "description": "Extraction - Molar",
+          "tooth": 15,
+          "cost": 800,
+          "duration": "45 mins",
+          "materials": [
+            "Local Anesthetic",
+            "Suture Kit"
+          ],
+          "prescriptions": [
+            {
+              "medication": "Clindamycin 300mg",
+              "dosage": "QID for 5 days",
+              "startDate": "2024-04-11"
+            },
+            {
+              "medication": "Ibuprofen 400mg",
+              "dosage": "PRN for pain",
+              "startDate": "2024-04-11"
+            }
+          ]
+        }
+      ],
+      "followUp": {
+        "interval": "1 week",
+        "requiredTests": [
+          "Post-Extraction Review"
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "generatedBy": "AI-DENT v3.2.1",
+    "lastUpdated": "2024-04-10T10:15:00+03:00",
+    "clinicInfo": {
+      "name": "Al-Farsi Dental Specialists",
+      "license": "SA-2024-MOH-98765",
+      "address": "Prince Sultan Road, Jeddah"
+    }
+  }
+}

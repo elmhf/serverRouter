@@ -1,0 +1,292 @@
+{
+  "patientId": "PT-2024-5432",
+ "JAw":{  "upperJaw": {
+    "mask": [
+      [379, 404], [355, 419], [370, 580], [505, 680], [565, 693],
+      [710, 697], [815, 714], [946, 712], [1035, 708], [1200, 702],
+      [1348, 685], [1474, 685], [1545, 657], [1577, 616], [1622, 522],
+      [1613, 437], [1716, 321], [1848, 314], [1955, 308], [1960, 340],
+      [1938, 400], [1940, 466], [1925, 569], [1934, 659], [1902, 734],
+      [1866, 775], [1771, 781], [1650, 807]
+    ]
+  },
+  "lowerJaw": {
+    "mask": [
+
+      [420, 850],   
+      [480, 880],
+      [550, 900],
+      [630, 915],
+      [720, 925],
+      [820, 930],
+      [920, 932],
+      [1020, 930],
+      [1120, 925],
+      [1220, 915],
+      [1320, 900],
+      [1420, 880],
+      [1520, 850],
+      [1580, 820],
+      [1620, 780],
+      [1640, 740],
+      [1650, 700],
+      [1645, 660],
+      [1635, 620],
+      [1620, 580],
+      [1600, 550],
+      [1570, 530],
+      [1530, 520],
+      [1480, 515],
+      [1420, 518],
+      [1360, 525],
+      [1300, 535],
+      [1240, 550]    
+    ]
+  }},
+  "info": {
+    "fullName": "Ahmed Mohammed Al-Farsi",
+    "dateOfBirth": "1988-11-22",
+    "age": 35,
+    "lastScanDate": "2024-04-18T14:30:00+03:00",
+    "gender": "male",
+    "bloodType": "O+",
+
+    "allergies": ["Sulfa drugs", "Local anesthetics with epinephrine"],
+    "medicalHistory": [
+      {
+        "date": "2019-08-10",
+        "description": "Periodontal surgery",
+        "clinic": "Royal Dental Center - Jeddah"
+      },
+      {
+        "date": "2022-03-15",
+        "description": "Orthodontic treatment (Invisalign)",
+        "duration": "18 months"
+      }
+    ]
+  },  "problemDetective":[ "Periapical Abscess", "Impacted", "Apicoectomy" ],
+
+  "scan": {
+    "device": "Carestream CS 8100 3D",
+    "dimensions": {
+      "width": 1400,
+      "height": 1200,
+      "resolution": "16-bit",
+      "dpi": 350
+    },
+    "scanDate": "2024-04-18T14:30:00+03:00",
+    "scanType": "CBCT Scan",
+    "radiationDose": "9.2 μSv"
+  },
+  "teeth": [
+    {
+      "toothNumber": 36,
+      "category": "Unhealthy",
+
+      "Endo":{
+        "mask":[
+          [555, 399],
+          [565, 438],
+          [567, 463],
+          [582, 482],
+          [578, 486],
+          [561, 486],
+          [545, 458],
+          [542, 424],
+          [537, 392],
+          [552, 382]
+        ]
+      },
+      "Root":{
+        "mask":[
+          [602, 456],
+          [575, 376],
+          [560, 358],
+          [521, 363],
+          [517, 383],
+          [521, 410],
+          [526, 430],
+          [533, 447],
+          [535, 472],
+          [557, 478],
+          [580, 470],
+          [614, 470],
+          [605, 457]
+        ]
+        
+      },
+      "Crown":{
+        "mask":[
+          [603, 469],
+          [586, 468],
+          [555, 479],
+          [533, 473],
+          [527, 492],
+          [527, 516],
+          [536, 535],
+          [552, 548],
+          [573, 540],
+          [595, 545],
+          [615, 538],
+          [627, 528],
+          [626, 506],
+          [613, 476]
+        ]
+      },
+      "position": {"x": 480, "y": 680},
+      "boundingBox": [
+        [440, 640],
+        [520, 640],
+        [520, 760],
+        [440, 760]
+      ],
+      "teeth_mask": [
+        [450, 650], [470, 645], [500, 650],
+        [515, 670], [515, 720], [505, 750],
+        [480, 760], [460, 750], [445, 720],
+        [440, 680]
+      ],
+      "problems": [
+        {
+          "type": "Periapical Abscess",
+          "coordinates": {"x": 490, "y": 700},
+          "mask": [
+            [480, 695], [495, 690], [505, 700],
+            [500, 715], [490, 720], [480, 715],
+            [475, 705]
+          ],
+          "size": "3.2mm diameter",
+          "severity": "Acute",
+          "confidence": 0.96,
+          "recommendation": "Root canal treatment"
+        }
+      ],
+      "gumHealth": "Severe Periodontitis",
+      "pocketDepths": [5, 6, 7, 5],
+      "lastCheckup": "2024-04-15T10:00:00+03:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 21,
+      "category": "Missing",
+      "position": {"x": 380, "y": 250},
+      "boundingBox": [
+        [340, 220],
+        [420, 220],
+        [420, 350],
+        [340, 350]
+      ],
+      "teeth_mask": [
+        [350, 230], [370, 225], [400, 230],
+        [415, 245], [415, 300], [405, 330],
+        [380, 340], [360, 335], [345, 310],
+        [340, 260]
+      ],
+      "restoration": {
+        "type": "Porcelain Crown",
+        "material": "Zirconia",
+        "placedDate": "2023-02-20T09:45:00+03:00",
+        "condition": "Excellent"
+      },
+      "gumHealth": "Healthy",
+      "lastCheckup": "2024-04-15T10:30:00+03:00",
+      "roots": 2,
+      "canals": 3
+    },
+
+    {
+      "toothNumber": 13,
+      "category": "Healthy",
+      "position": {"x": 450, "y": 280},
+      "boundingBox": [
+        [410, 250],
+        [490, 250],
+        [490, 380],
+        [410, 380]
+      ],
+      "teeth_mask": [
+        [420, 260], [440, 255], [470, 260],
+        [485, 275], [485, 330], [475, 360],
+        [450, 370], [430, 365], [415, 340],
+        [410, 290]
+      ],
+      "problems": [],
+      "gumHealth": "Excellent",
+      "lastCheckup": "2024-04-15T11:00:00+03:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 47,
+      "category": "Unhealthy",
+      "position": {"x": 700, "y": 650},
+      "boundingBox": [
+        [660, 620],
+        [740, 620],
+        [740, 750],
+        [660, 750]
+      ],
+      "teeth_mask": [
+        [670, 630], [690, 625], [720, 630],
+        [735, 650], [735, 700], [725, 730],
+        [700, 740], [680, 735], [665, 710],
+        [660, 660]
+      ],
+      "problems": [
+        {
+          "type": "Impacted",
+          "subtype": "Mesioangular",
+          "coordinates": {"x": 710, "y": 680},
+          "mask": [
+            [700, 670], [715, 665], [725, 675],
+            [720, 690], [710, 695], [700, 690],
+            [695, 680]
+          ],
+          "depth": "Partial bony",
+          "proximityToNerve": "2.1mm from IAN",
+          "recommendation": "Surgical extraction"
+        }
+      ],
+      "gumHealth": "Operculum with inflammation",
+      "lastCheckup": "2024-04-15T11:30:00+03:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 24,
+      "category": "Treated",
+      "position": {"x": 550, "y": 320},
+      "boundingBox": [
+        [510, 290],
+        [590, 290],
+        [590, 420],
+        [510, 420]
+      ],
+      "teeth_mask": [
+        [520, 300], [540, 295], [570, 300],
+        [585, 315], [585, 370], [575, 400],
+        [550, 410], [530, 405], [515, 380],
+        [510, 330]
+      ],
+      "problems": [
+        {
+          "type": "Apicoectomy",
+          "status": "Healed",
+          "coordinates": {"x": 560, "y": 350},
+          "mask": [
+            [550, 345], [565, 340], [575, 350],
+            [570, 365], [560, 370], [550, 365],
+            [545, 355]
+          ],
+          "treatedDate": "2022-09-05T13:15:00+03:00",
+          "material": "MTA Retrofill"
+        }
+      ],
+      "gumHealth": "Mild recession",
+      "lastCheckup": "2024-04-15T12:00:00+03:00",
+      "roots": 2,
+      "canals": 3
+    }
+  ]
+}

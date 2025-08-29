@@ -1,0 +1,426 @@
+{
+  "patientId": "PT-2025-3050",
+  "JAw": {
+    "upperJaw": {
+      "mask": [
+        [380, 420], [350, 440], [370, 600], [500, 710], [570, 725],
+        [730, 730], [850, 740], [970, 735], [1080, 730], [1240, 725],
+        [1370, 710], [1490, 705], [1560, 675], [1590, 640], [1640, 550],
+        [1630, 470], [1730, 360], [1860, 350], [1970, 345], [1980, 375],
+        [1950, 440], [1955, 510], [1940, 610], [1950, 700], [1920, 780],
+        [1880, 820], [1780, 830], [1660, 850]
+      ]
+    },
+    "lowerJaw": {
+      "mask": [
+        [430, 890], [490, 920], [560, 940], [650, 955], [750, 965],
+        [860, 970], [970, 972], [1080, 970], [1190, 965], [1300, 955],
+        [1410, 940], [1520, 920], [1630, 890], [1700, 860], [1740, 820],
+        [1760, 780], [1770, 740], [1765, 700], [1750, 660], [1730, 620],
+        [1710, 590], [1680, 570], [1640, 560], [1590, 555], [1530, 558],
+        [1470, 565], [1410, 575], [1350, 590]
+      ]
+    }
+  },
+  "info": {
+    "fullName": "Ali Ahmed Al-Mansouri",
+    "dateOfBirth": "1975-11-15",
+    "age": 49,
+    "lastScanDate": "2025-06-04T09:30:00+03:00",
+    "gender": "male",
+    "bloodType": "A+",
+    "allergies": ["Penicillin"],
+    "medicalHistory": [
+      {
+        "date": "2015-04-20",
+        "description": "Hypertension, controlled",
+        "clinic": "King Fahad Medical City"
+      },
+      {
+        "date": "2020-09-10",
+        "description": "Extraction of multiple teeth due to caries",
+        "clinic": "Al-Mansouri Dental Clinic"
+      }
+    ]
+  },
+  "problemDetective": [
+    "Generalized Bone Loss",
+    "Multiple Missing Teeth",
+    "Advanced Caries",
+    "Old Restorations",
+    "Root Canal Treatments"
+  ],
+  "scan": {
+    "device": "iMax-Touch 3D",
+    "dimensions": {
+      "width": 1500,
+      "height": 1200,
+      "resolution": "16-bit",
+      "dpi": 400
+    },
+    "scanDate": "2025-06-04T09:30:00+03:00",
+    "scanType": "Panoramic X-ray",
+    "radiationDose": "10.5 μSv"
+  },
+  "teeth": [
+    {
+      "toothNumber": 11,
+      "comment": "Incisal edge wear, mild attrition, no caries.",
+      "category": "Healthy",
+      "position": { "x": 600, "y": 260 },
+      "boundingBox": [
+        [580, 240], [620, 240], [620, 280], [580, 280]
+      ],
+      "teeth_mask": [
+        [590, 250], [610, 255], [615, 275], [595, 270]
+      ],
+      "problems": [],
+      "gumHealth": "Mild Recession",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 12,
+      "comment": "Old composite restoration, no recurrent caries.",
+      "category": "Treated",
+      "position": { "x": 650, "y": 265 },
+      "boundingBox": [
+        [630, 245], [670, 245], [670, 285], [630, 285]
+      ],
+      "teeth_mask": [
+        [640, 255], [660, 260], [665, 280], [645, 275]
+      ],
+      "problems": [],
+      "gumHealth": "Healthy",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 13,
+      "comment": "Crown present, root canal treated.",
+      "category": "Treated",
+      "position": { "x": 700, "y": 270 },
+      "boundingBox": [
+        [680, 250], [720, 250], [720, 290], [680, 290]
+      ],
+      "teeth_mask": [
+        [690, 260], [710, 265], [715, 285], [695, 280]
+      ],
+      "problems": [
+        {
+          "type": "RCT",
+          "subtype": "Completed",
+          "coordinates": { "x": 705, "y": 275 },
+          "mask": [
+            [695, 265], [710, 270], [708, 280], [698, 278]
+          ],
+          "severity": "None",
+          "confidence": 0.95,
+          "images": ["/images/rct_13_1.png"]
+        }
+      ],
+      "gumHealth": "Healthy",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 14,
+      "comment": "Large carious lesion, radiolucency approaching pulp.",
+      "category": "Pathology",
+      "position": { "x": 750, "y": 275 },
+      "boundingBox": [
+        [730, 255], [770, 255], [770, 295], [730, 295]
+      ],
+      "teeth_mask": [
+        [740, 265], [760, 270], [765, 290], [745, 285]
+      ],
+      "problems": [
+        {
+          "type": "Dental Caries",
+          "subtype": "Deep",
+          "coordinates": { "x": 755, "y": 280 },
+          "mask": [
+            [745, 270], [760, 275], [758, 285], [748, 283]
+          ],
+          "size": "3.8mm",
+          "severity": "High",
+          "confidence": 0.92,
+          "images": ["/images/caries_14_1.png"]
+        }
+      ],
+      "gumHealth": "Moderate Inflammation",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 16,
+      "comment": "Missing tooth, extraction site healed.",
+      "category": "Missing",
+      "position": { "x": 300, "y": 180 },
+      "boundingBox": [
+        [280, 160], [320, 160], [320, 200], [280, 200]
+      ],
+      "teeth_mask": [],
+      "problems": [],
+      "gumHealth": "Healthy",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 17,
+      "comment": "Missing tooth, alveolar ridge resorption.",
+      "category": "Missing",
+      "position": { "x": 250, "y": 200 },
+      "boundingBox": [
+        [230, 180], [270, 180], [270, 220], [230, 220]
+      ],
+      "teeth_mask": [],
+      "problems": [],
+      "gumHealth": "Moderate Inflammation",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 21,
+      "comment": "Incisal edge wear, mild attrition.",
+      "category": "Healthy",
+      "position": { "x": 900, "y": 260 },
+      "boundingBox": [
+        [880, 240], [920, 240], [920, 280], [880, 280]
+      ],
+      "teeth_mask": [
+        [890, 250], [910, 255], [915, 275], [895, 270]
+      ],
+      "problems": [],
+      "gumHealth": "Mild Recession",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 24,
+      "comment": "Deep caries, radiolucency at mesial root.",
+      "category": "Pathology",
+      "position": { "x": 1050, "y": 265 },
+      "boundingBox": [
+        [1030, 245], [1070, 245], [1070, 285], [1030, 285]
+      ],
+      "teeth_mask": [
+        [1040, 255], [1060, 260], [1065, 280], [1045, 275]
+      ],
+      "problems": [
+        {
+          "type": "Dental Caries",
+          "subtype": "Deep",
+          "coordinates": { "x": 1055, "y": 270 },
+          "mask": [
+            [1045, 260], [1060, 265], [1058, 275], [1048, 273]
+          ],
+          "size": "3.2mm",
+          "severity": "High",
+          "confidence": 0.91,
+          "images": ["/images/caries_24_1.png"]
+        }
+      ],
+      "gumHealth": "Moderate Inflammation",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 26,
+      "comment": "Old amalgam restoration, no recurrent caries.",
+      "category": "Treated",
+      "position": { "x": 1200, "y": 220 },
+      "boundingBox": [
+        [1180, 200], [1220, 200], [1220, 240], [1180, 240]
+      ],
+      "teeth_mask": [
+        [1190, 210], [1210, 215], [1215, 235], [1195, 230]
+      ],
+      "problems": [],
+      "gumHealth": "Healthy",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 27,
+      "comment": "Missing tooth, alveolar ridge resorption.",
+      "category": "Missing",
+      "position": { "x": 1250, "y": 200 },
+      "boundingBox": [
+        [1230, 180], [1270, 180], [1270, 220], [1230, 220]
+      ],
+      "teeth_mask": [],
+      "problems": [],
+      "gumHealth": "Moderate Inflammation",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 36,
+      "comment": "Root canal treated, crown present, slight bone loss.",
+      "category": "Treated",
+      "position": { "x": 500, "y": 900 },
+      "boundingBox": [
+        [480, 880], [520, 880], [520, 920], [480, 920]
+      ],
+      "teeth_mask": [
+        [490, 890], [510, 895], [515, 915], [495, 910]
+      ],
+      "problems": [
+        {
+          "type": "Bone Loss",
+          "subtype": "Horizontal",
+          "coordinates": { "x": 505, "y": 910 },
+          "mask": [
+            [495, 900], [510, 905], [508, 915], [498, 912]
+          ],
+          "severity": "Mild",
+          "confidence": 0.85,
+          "images": ["/images/bone_36_1.png"]
+        }
+      ],
+      "gumHealth": "Mild Inflammation",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 37,
+      "comment": "Deep caries, radiolucency at distal root.",
+      "category": "Pathology",
+      "position": { "x": 450, "y": 950 },
+      "boundingBox": [
+        [430, 930], [470, 930], [470, 970], [430, 970]
+      ],
+      "teeth_mask": [
+        [440, 940], [460, 945], [465, 965], [445, 960]
+      ],
+      "problems": [
+        {
+          "type": "Dental Caries",
+          "subtype": "Deep",
+          "coordinates": { "x": 455, "y": 955 },
+          "mask": [
+            [445, 945], [460, 950], [458, 960], [448, 958]
+          ],
+          "size": "2.7mm",
+          "severity": "High",
+          "confidence": 0.91,
+          "images": ["/images/caries_37_1.png"]
+        }
+      ],
+      "gumHealth": "Moderate Inflammation",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 46,
+      "comment": "Healthy tooth, no pathology.",
+      "category": "Healthy",
+      "position": { "x": 1200, "y": 900 },
+      "boundingBox": [
+        [1180, 880], [1220, 880], [1220, 920], [1180, 920]
+      ],
+      "teeth_mask": [
+        [1190, 890], [1210, 895], [1215, 915], [1195, 910]
+      ],
+      "problems": [],
+      "gumHealth": "Healthy",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    },
+    {
+      "toothNumber": 47,
+      "comment": "Missing tooth, extraction site healed.",
+      "category": "Missing",
+      "position": { "x": 1250, "y": 950 },
+      "boundingBox": [
+        [1230, 930], [1270, 930], [1270, 970], [1230, 970]
+      ],
+      "teeth_mask": [],
+      "problems": [],
+      "gumHealth": "Healthy",
+      "lastCheckup": "2025-06-04T09:40:00",
+      "roots": 2,
+      "canals": 3
+    }
+  ],
+  "statistics": {
+    "totalTeeth": 22,
+    "healthy": 4,
+    "treated": 4,
+    "pathology": 3,
+    "missing": 7,
+    "cariesDistribution": {
+      "active": 2,
+      "arrested": 0,
+      "recurrent": 0
+    },
+    "periodontalStatus": "Stage III Grade C"
+  },
+  "treatmentPlan": [
+    {
+      "planId": "TP-2025-3051",
+      "priority": "High",
+      "procedures": [
+        {
+          "code": "D2391",
+          "description": "Resin-based composite - one surface, posterior",
+          "tooth": 14,
+          "cost": 750,
+          "duration": "1 visit",
+          "materials": [
+            "Composite Resin",
+            "Bonding Agent"
+          ]
+        },
+        {
+          "code": "D3310",
+          "description": "Endodontic Therapy - Anterior",
+          "tooth": 24,
+          "cost": 1300,
+          "duration": "60 mins",
+          "materials": [
+            "Rubber Dam",
+            "Gutta Percha"
+          ],
+          "prescriptions": [
+            {
+              "medication": "Metronidazole 500mg",
+              "dosage": "BID for 7 days",
+              "startDate": "2025-06-05"
+            }
+          ]
+        }
+      ],
+      "followUp": {
+        "interval": "2 weeks",
+        "requiredTests": [
+          "Periapical Radiograph",
+          "Vitality Test"
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "generatedBy": "AI-DENT v3.2.1",
+    "lastUpdated": "2025-06-04T10:00:00+03:00",
+    "clinicInfo": {
+      "name": "Al-Mansouri Dental Clinic",
+      "license": "SA-2025-MOH-67890",
+      "address": "King Fahad Road, Riyadh"
+    }
+  }
+}
