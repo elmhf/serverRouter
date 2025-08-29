@@ -8,6 +8,7 @@ import fetch from 'node-fetch';
 // Flask API configuration
 const FLASK_API_URL = 'http://localhost:5001'; // Update with your Flask server URL
 const cbct_report_generated = `${FLASK_API_URL}/cbct-report-generated`;
+const pano_report_generated = `${FLASK_API_URL}/pano-report-generated`;
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -82,8 +83,11 @@ const callFlaskUploadAPI = async (filePath, clinicId, patientId, reportType, rep
     formData.append('report_type', reportType.toLowerCase());
     formData.append('report_id', reportId);
     
+    // Determine which Flask endpoint to use based on report type
+    const flaskEndpoint = reportType.toLowerCase() === 'pano' ? pano_report_generated : cbct_report_generated;
+    
     // Make request to Flask API
-    const response = await fetch(cbct_report_generated, {
+    const response = await fetch(flaskEndpoint, {
       method: 'POST',
       body: formData,
       headers: {
@@ -449,6 +453,213 @@ export const clearFlaskCache = async (req, res) => {
       error: error.message
     });
   }
+};
+
+// ✅ Generate Pano Report with Flask API Integration
+export const generatePanoReportWithFlask = async (req, res) => {
+  console.log('🔄 Generating Pano Report with Flask API...');
+  
+  upload.single('file')(req, res, async (err) => {
+    if (err) {
+      console.error('File upload error:', err);
+      return res.status(400).json({ 
+        success: false,
+        error: err.message,
+        status: 'error'
+      });
+    }
+
+    const { 
+      patient_id, 
+      report_id,
+      clinic_id
+    } = req.body;
+    
+    console.log('Pano report data:', req.body);
+    console.log('Uploaded file:', req.file);
+    
+    const userId = req.user?.id;
+    console.log('User ID:', userId);
+    
+    if (!patient_id) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Patient ID is required',
+        status: 'error'
+      });
+    }
+    
+    if (!report_id) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Report ID is required',
+        status: 'error'
+      });
+    }
+
+    if (!clinic_id) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Clinic ID is required',
+        status: 'error'
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Image file is required (JPG or PNG)',
+        status: 'error'
+      });
+    }
+
+    // Check if file is JPG or PNG
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Only JPG and PNG image files are allowed',
+        status: 'error'
+      });
+    }
+
+    try {
+      // 1. Check if user is a member of this clinic
+      const { data: userMembership, error: membershipError } = await supabaseUser
+        .from('user_clinic_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('clinic_id', clinic_id)
+        .maybeSingle();
+        
+      if (membershipError) {
+        console.error('Membership check error:', membershipError);
+        return res.status(500).json({ 
+          success: false,
+          error: 'Database error',
+          status: 'error'
+        });
+      }
+
+      if (!userMembership) {
+        return res.status(403).json({ 
+          success: false,
+          error: 'You must be a member of this clinic to generate pano reports',
+          status: 'error'
+        });
+      }
+
+      // 2. Verify report exists and is of type 'pano'
+      const { data: report, error: reportError } = await supabaseUser
+        .from('report_ai')
+        .select('raport_type, status')
+        .eq('report_id', report_id)
+        .eq('patient_id', patient_id)
+        .single();
+
+      if (reportError || !report) {
+        console.error('Report fetch error:', reportError);
+        return res.status(404).json({ 
+          success: false,
+          error: 'Report not found',
+          status: 'error'
+        });
+      }
+
+      if (report.raport_type !== 'pano') {
+        return res.status(400).json({ 
+          success: false,
+          error: 'Report must be of type "pano"',
+          status: 'error'
+        });
+      }
+
+      // 3. Update report status to processing
+      const { error: updateError } = await supabaseUser
+        .from('report_ai')
+        .update({ 
+          status: 'processing',
+          last_upload: new Date().toISOString()
+        })
+        .eq('report_id', report_id);
+
+      if (updateError) {
+        console.error('Report status update error:', updateError);
+        return res.status(500).json({ 
+          success: false,
+          error: 'Failed to update report status',
+          status: 'error'
+        });
+      }
+
+      // 4. Send immediate response to client
+      const responseData = {
+        success: true,
+        message: 'Pano report generation started',
+        status: 'success',
+        report: {
+          id: report_id,
+          patient_id,
+          clinic_id,
+          raport_type: 'pano',
+          status: 'processing'
+        },
+        uploadedFile: {
+          filename: req.file.filename,
+          originalname: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        },
+        processing: {
+          flask_api_called: false,
+          message: 'Image processing started in background'
+        }
+      };
+
+      res.status(200).json(responseData);
+
+      // 5. Process image in background using Flask API
+      console.log('🚀 Starting background pano processing with Flask API...');
+      
+      setImmediate(async () => {
+        try {
+          const flaskResults = await callFlaskUploadAPI(
+            req.file.path,
+            clinic_id,
+            patient_id,
+            'pano',
+            report_id
+          );
+          
+          // Update report with Flask results
+          await updateReportWithFlaskResults(report_id, flaskResults);
+          
+          // Clean up local file after processing
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+            console.log('🗑️ Local file cleaned up:', req.file.path);
+          }
+          
+        } catch (error) {
+          console.error('❌ Background pano processing failed:', error);
+          
+          // Update report status to failed
+          await updateReportWithFlaskResults(report_id, {
+            success: false,
+            error: error.message
+          });
+        }
+      });
+
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      res.status(500).json({ 
+        success: false,
+        error: err.message,
+        status: 'error'
+      });
+    }
+  });
 };
 
 // ✅ Delete AI Report (keeping original logic)
