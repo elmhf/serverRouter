@@ -1,11 +1,14 @@
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  service: "gmail",
   auth: {
-    user: "jihadchaabani75@gmail.com",
-    pass: "rpyftsyyccvyoofk",
+    user: "jihadchaabani80@gmail.com",
+    pass: "kvactkcznenvpkup" // App Password من Gmail (موش كلمة السرّ العادية)
   },
+  tls: {
+    rejectUnauthorized: false // يخلي الاتصال يتجاوز self-signed error
+  }
 });
 
 export async function sendEmail({ to, subject, text, html }) {

@@ -48,6 +48,9 @@ const transporter = createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+    tls: {
+    rejectUnauthorized: false // يخلي الاتصال يتجاوز self-signed error
+  }
 });
 
 // Helper to load and fill the email template

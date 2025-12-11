@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createReport, deleteReport, updateReportStatus, getReportData, getReportDataPost, generateCbctReport, getReportDataWithJsonPost, generatePanoReportWithFlask } from '../controllers/reportController.js';
+import { createReport, deleteReport, updateReportStatus, updateReportData, getReportData, getReportDataPost, generateCbctReport, getReportDataWithJsonPost, generatePanoReportWithFlask } from '../controllers/reportController.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
@@ -8,9 +8,10 @@ const router = Router();
 router.post('/create', authMiddleware, createReport);
 router.delete('/delete', authMiddleware, deleteReport);
 router.put('/update-status', authMiddleware, updateReportStatus);
+router.post('/update-data', authMiddleware, updateReportData);
 router.get('/get-data', authMiddleware, getReportData);
 router.post('/get-data', authMiddleware, getReportDataPost);
-router.post('/get-data-with-json',authMiddleware, getReportDataWithJsonPost); // جديد
+router.post('/get-data-with-json', authMiddleware, getReportDataWithJsonPost); // جديد
 router.post('/generate-cbct', authMiddleware, generateCbctReport);
 router.post('/generate-pano', authMiddleware, generatePanoReportWithFlask); // جديد - Pano with Flask API
 

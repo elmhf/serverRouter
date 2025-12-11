@@ -11,9 +11,14 @@ import {
   refreshToken,
   sendEmailUpdateCode,
   verifyEmailUpdateCode,
+  verifyEmailOtpCode,
+  login2FA,
+
+
   verifyPassword,
   sendEmailOtpCode,
-  verifyEmailOtpCode
+  initiateAccountDeletion,
+  confirmAccountDeletion
 } from '../controllers/authController.js';
 
 import validateSignupInput from '../middlewares/validateSignupInput.js';
@@ -40,14 +45,19 @@ router.post('/send-verification-code', validateSignupInput, sendVerificationCode
 router.post('/verify-and-signup', verifyAndSignup);
 router.post('/resend-verification-code', resendVerificationCode);
 router.post('/login', login);
-router.post('/logout',logout)
+router.post('/login-2fa', login2FA);
+router.post('/logout', logout)
 router.post('/refresh-token', refreshToken);
 router.post('/verification-status', verificationStatus);
 router.post('/send-email-update-code', authMiddleware, sendEmailUpdateCode);
 router.post('/verify-email-update-code', authMiddleware, verifyEmailUpdateCode);
 router.post('/verify-password', verifyPassword);
-router.post('/send-email-otp-code', authMiddleware,sendEmailOtpCode);
-router.post('/verify-email-otp-code', authMiddleware,verifyEmailOtpCode);
+router.post('/send-email-otp-code', authMiddleware, sendEmailOtpCode);
+router.post('/verify-email-otp-code', authMiddleware, verifyEmailOtpCode);
+
+// ===== Account Deletion =====
+router.post('/delete-account/initiate', authMiddleware, initiateAccountDeletion);
+router.post('/delete-account/confirm', authMiddleware, confirmAccountDeletion);
 
 
 if (process.env.NODE_ENV === 'development') {

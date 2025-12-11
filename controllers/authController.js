@@ -1,8 +1,32 @@
-import {supabaseAdmin,supabaseUser} from '../supabaseClient.js';
+import { supabaseAdmin, supabaseUser } from '../supabaseClient.js';
 import generateCode from '../utils/generateCode.js';
 import { renderEmailTemplate } from '../utils/templateRenderer.js';
 import { sendEmail } from '../utils/emailService.js';
 import validateEmailUsage from '../utils/emailverification.js';
+import crypto from 'crypto';
+import speakeasy from 'speakeasy';
+
+// Encryption setup
+const ENCRYPTION_KEY = crypto.createHash('sha256').update(String(process.env.JWT_SECRET || 'secret')).digest('base64').substr(0, 32);
+const IV_LENGTH = 16;
+
+function encryptTempToken(data) {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+  let encrypted = cipher.update(JSON.stringify(data));
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decryptTempToken(text) {
+  const textParts = text.split(':');
+  const iv = Buffer.from(textParts.shift(), 'hex');
+  const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+  let decrypted = decipher.update(encryptedText);
+  decrypted = Buffer.concat([decrypted, decipher.final()]);
+  return JSON.parse(decrypted.toString());
+}
 
 // إعدادات الـ cookies
 const COOKIE_OPTIONS = {
@@ -85,38 +109,38 @@ export async function sendVerificationCode(req, res) {
     // فحص المستخدمين الموجودين
     const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
     console.log(`[sendVerificationCode] Users fetched from Supabase`);
-    
+
     // البحث عن مستخدم مؤكد بنفس الإيميل
-    const confirmedUser = allUsers.users.find(u => 
+    const confirmedUser = allUsers.users.find(u =>
       u.email === email && u.email_confirmed_at
     );
-    
+
     if (confirmedUser) {
       console.log(`[sendVerificationCode] Email already registered:`, email);
       return res.status(409).json({ error: 'Email already registered' });
     }
-    
+
     // البحث عن مستخدم معلق (pending verification)
-    const pendingUser = allUsers.users.find(u => 
+    const pendingUser = allUsers.users.find(u =>
       u.email === email && !u.email_confirmed_at
     );
-    
+
     // فحص الـ rate limiting
     if (pendingUser?.user_metadata?.last_sent) {
       const lastSent = pendingUser.user_metadata.last_sent;
       if (now - lastSent < 60000) {
         const waitTime = Math.ceil((60000 - (now - lastSent)) / 1000);
         console.log(`[sendVerificationCode] Rate limit hit for:`, email);
-        return res.status(429).json({ 
-          error: "Please wait before requesting another code", 
-          waitTime 
+        return res.status(429).json({
+          error: "Please wait before requesting another code",
+          waitTime
         });
       }
     }
-    
+
     const code = generateCode();
     console.log(`[sendVerificationCode] Generated code for ${email}:`, code);
-    
+
     if (pendingUser) {
       // تحديث المستخدم الموجود
       await supabaseAdmin.auth.admin.updateUserById(pendingUser.id, {
@@ -133,7 +157,7 @@ export async function sendVerificationCode(req, res) {
           status: 'pending_verification'
         }
       });
-      
+
       console.log(`[sendVerificationCode] Updated pending user:`, email);
     } else {
       // إنشاء مستخدم جديد معلق
@@ -152,34 +176,34 @@ export async function sendVerificationCode(req, res) {
         },
         email_confirm: false // مهم جداً! لا تأكيد فوري
       });
-      
+
       if (createError) {
         console.error('[sendVerificationCode] Error creating pending user:', createError);
         return res.status(500).json({ error: 'Failed to create verification session' });
       }
-      
+
       console.log(`[sendVerificationCode] Created pending user: ${email}, ID: ${newUser.user.id}`);
     }
-    
+
     // إرسال البريد الإلكتروني
     const html = renderEmailTemplate({ code, firstName, lastName, email });
     const text = `Your verification code is: ${code}`;
     console.log(`[sendVerificationCode] Sending email to:`, email);
-    
-    await sendEmail({ 
-      to: email, 
-      subject: 'Your Verification Code', 
-      text, 
-      html 
+
+    await sendEmail({
+      to: email,
+      subject: 'Your Verification Code',
+      text,
+      html
     });
-    
+
     console.log(`[sendVerificationCode] Email sent successfully to:`, email);
-    res.status(200).json({ 
-      message: 'Verification code sent successfully', 
-      email, 
-      expiresIn: 300 
+    res.status(200).json({
+      message: 'Verification code sent successfully',
+      email,
+      expiresIn: 300
     });
-    
+
   } catch (error) {
     console.error('[sendVerificationCode] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -210,9 +234,9 @@ export async function verifyAndSignup(req, res) {
 
   const { email, code } = req.body;
   const now = Date.now();
-  
+
   console.log(`[verifyAndSignup] Request for:`, email);
-  
+
   // التحقق من صحة البيانات المدخلة
   if (!email || !code) {
     return res.status(400).json({ error: 'Email and code are required' });
@@ -225,64 +249,64 @@ export async function verifyAndSignup(req, res) {
   if (!/^\d{6}$/.test(code)) {
     return res.status(400).json({ error: 'Code must be 6 digits' });
   }
-  
+
   // استخدام transaction لضمان consistency
   const { data: dbTransaction, error: transactionError } = await supabaseAdmin.rpc('begin_transaction');
-  
+
   try {
     // البحث عن المستخدم المعلق بطريقة أكثر كفاءة
     const { data: pendingUsers, error: fetchError } = await supabaseAdmin.auth.admin.listUsers({
       page: 1,
       perPage: 1000 // أو استخدم pagination حسب الحاجة
     });
-    
+
     if (fetchError) {
       console.error('[verifyAndSignup] Error fetching users:', fetchError);
       return res.status(500).json({ error: 'Internal server error' });
     }
-    
-    const pendingUser = pendingUsers.users.find(u => 
-      u.email?.toLowerCase() === email.toLowerCase() && 
+
+    const pendingUser = pendingUsers.users.find(u =>
+      u.email?.toLowerCase() === email.toLowerCase() &&
       !u.email_confirmed_at
     );
-    
+
     if (!pendingUser) {
       console.log(`[verifyAndSignup] No pending verification for:`, email);
       return res.status(400).json({ error: 'No pending verification found for this email' });
     }
-    
+
     const metadata = pendingUser.user_metadata;
-    
+
     // التحقق من وجود بيانات التحقق
     if (!metadata?.verification_code || !metadata?.verification_expires) {
       console.log(`[verifyAndSignup] Invalid verification data for:`, email);
       return res.status(400).json({ error: 'Invalid verification data' });
     }
-    
+
     // التحقق من الكود والانتهاء بطريقة آمنة
     const providedCode = code.toString().trim();
     const storedCode = metadata.verification_code.toString().trim();
-    
+
     // استخدام constant-time comparison لمنع timing attacks
-    if (providedCode.length !== storedCode.length || 
-        !timingSafeEqual(Buffer.from(providedCode), Buffer.from(storedCode)) ||
-        now > metadata.verification_expires) {
-      
+    if (providedCode.length !== storedCode.length ||
+      !timingSafeEqual(Buffer.from(providedCode), Buffer.from(storedCode)) ||
+      now > metadata.verification_expires) {
+
       console.log(`[verifyAndSignup] Invalid or expired code for:`, email);
-      
+
       // تسجيل المحاولة الفاشلة للمراقبة
       console.warn(`[SECURITY] Failed verification attempt for: ${email} from IP: ${req.ip}`);
-      
+
       return res.status(400).json({ error: 'Invalid or expired verification code' });
     }
-    
+
     console.log(`[verifyAndSignup] Verifying user:`, email);
-    
+
     // تنظيف وتحقق من البيانات قبل الحفظ
     const sanitizedPhone = sanitizePhoneNumber(metadata.phone);
     const sanitizedFirstName = sanitizeString(metadata.first_name);
     const sanitizedLastName = sanitizeString(metadata.last_name);
-    
+
     // تأكيد البريل الإلكتروني وتنظيف الـ metadata
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(pendingUser.id, {
       email_confirm: true,
@@ -295,12 +319,12 @@ export async function verifyAndSignup(req, res) {
         // البيانات المؤقتة تُحذف تلقائياً (verification_code, verification_expires, password)
       }
     });
-    
+
     if (updateError) {
       console.error('[verifyAndSignup] Error updating user:', updateError);
       return res.status(500).json({ error: 'Failed to verify user' });
     }
-    
+
     console.log(`[verifyAndSignup] User verified successfully:`, pendingUser.id);
     // إنشاء ملف المستخدم في الجدول المخصص (بدون كلمة المرور)
     const userProfile = {
@@ -312,14 +336,14 @@ export async function verifyAndSignup(req, res) {
       email_verified: true,
       created_at: new Date().toISOString(),
     };
-    
+
     const { error: insertError } = await supabaseAdmin
       .from('user')
       .insert([userProfile]);
-    
+
     if (insertError) {
       console.error('[verifyAndSignup] Error inserting user profile:', insertError);
-      
+
       // Rollback: حذف المستخدم من auth إذا فشل إنشاء الملف الشخصي
       try {
         await supabaseAdmin.auth.admin.deleteUser(pendingUser.id);
@@ -327,18 +351,28 @@ export async function verifyAndSignup(req, res) {
       } catch (rollbackError) {
         console.error('[verifyAndSignup] Failed to rollback auth user:', rollbackError);
       }
-      
+
       return res.status(500).json({ error: 'Failed to create user profile' });
     }
-    
+
+    // إنشاء إعدادات الحماية للمستخدم
+    const { error: securityError } = await supabaseAdmin
+      .from('user_security')
+      .insert([{ user_id: pendingUser.id }]);
+
+    if (securityError) {
+      console.error('[verifyAndSignup] Error inserting user security:', securityError);
+      // يمكن إضافة rollback هنا إذا كان الأمر ضرورياً جداً
+    }
+
     // عدم إنشاء session تلقائياً - خلي المستخدم يسجل دخول بنفسه
     console.log(`[verifyAndSignup] User created successfully:`, email);
-    
+
     // إرسال response نظيف بدون معلومات حساسة
     res.status(201).json({
       message: 'Account verified successfully. You can now sign in.',
-      user: { 
-        id: pendingUser.id, 
+      user: {
+        id: pendingUser.id,
         email: pendingUser.email,
         firstName: sanitizedFirstName,
         lastName: sanitizedLastName,
@@ -348,10 +382,10 @@ export async function verifyAndSignup(req, res) {
       },
       nextStep: 'redirect_to_login'
     });
-    
+
   } catch (error) {
     console.error('[verifyAndSignup] Unexpected error:', error);
-    
+
     // تسجيل تفاصيل الخطأ للمراقبة
     console.error(`[ERROR] verifyAndSignup failed for ${email}:`, {
       error: error.message,
@@ -360,7 +394,7 @@ export async function verifyAndSignup(req, res) {
       ip: req.ip,
       userAgent: req.get('User-Agent')
     });
-    
+
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 }
@@ -372,12 +406,12 @@ function timingSafeEqual(a, b) {
   if (a.length !== b.length) {
     return false;
   }
-  
+
   let result = 0;
   for (let i = 0; i < a.length; i++) {
     result |= a[i] ^ b[i];
   }
-  
+
   return result === 0;
 }
 
@@ -386,7 +420,7 @@ function sanitizePhoneNumber(phone) {
   if (!phone || typeof phone !== 'string') {
     return null;
   }
-  
+
   const cleaned = phone.trim().replace(/[^\d+\-\s()]/g, '');
   return cleaned === '' ? null : cleaned;
 }
@@ -396,7 +430,7 @@ function sanitizeString(str) {
   if (!str || typeof str !== 'string') {
     return '';
   }
-  
+
   return str.trim()
     .replace(/[<>]/g, '') // إزالة HTML tags الأساسية
     .substring(0, 100); // تحديد طول النص
@@ -408,14 +442,14 @@ export const verifySignupSecurity = [
   (req, res, next) => {
     const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
     const origin = req.headers.origin;
-    
+
     if (allowedOrigins.includes(origin)) {
       res.header('Access-Control-Allow-Origin', origin);
     }
-    
+
     next();
   },
-  
+
   // Request size limiting
   (req, res, next) => {
     if (req.headers['content-length'] > 1024) { // 1KB max
@@ -423,7 +457,7 @@ export const verifySignupSecurity = [
     }
     next();
   },
-  
+
   // Basic input sanitization
   (req, res, next) => {
     if (req.body.email) {
@@ -441,33 +475,33 @@ export async function resendVerificationCode(req, res) {
   const { email } = req.body;
   const now = Date.now();
   console.log(`[resendVerificationCode] Request for:`, email);
-  
+
   try {
     const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
     console.log(`[resendVerificationCode] Users fetched from Supabase`);
-    const pendingUser = allUsers.users.find(u => 
+    const pendingUser = allUsers.users.find(u =>
       u.email === email && !u.email_confirmed_at
     );
-    
+
     if (!pendingUser) {
       console.log(`[resendVerificationCode] No pending verification for:`, email);
       return res.status(404).json({ error: 'No pending verification for this email' });
     }
-    
+
     // فحص الـ rate limiting
     const metadata = pendingUser.user_metadata;
     if (metadata.last_sent && now - metadata.last_sent < 60000) {
       const waitTime = Math.ceil((60000 - (now - metadata.last_sent)) / 1000);
       console.log(`[resendVerificationCode] Rate limit hit for:`, email);
-      return res.status(429).json({ 
-        error: "Please wait before requesting another code", 
-        waitTime 
+      return res.status(429).json({
+        error: "Please wait before requesting another code",
+        waitTime
       });
     }
-    
+
     const code = generateCode();
     console.log(`[resendVerificationCode] Generated new code for:`, email, code);
-    
+
     // تحديث الكود
     await supabaseAdmin.auth.admin.updateUserById(pendingUser.id, {
       user_metadata: {
@@ -477,30 +511,30 @@ export async function resendVerificationCode(req, res) {
         last_sent: now
       }
     });
-    
+
     // إرسال البريد
-    const html = renderEmailTemplate({ 
-      code, 
-      firstName: metadata.first_name, 
-      lastName: metadata.last_name, 
-      email 
+    const html = renderEmailTemplate({
+      code,
+      firstName: metadata.first_name,
+      lastName: metadata.last_name,
+      email
     });
     const text = `Your new verification code is: ${code}`;
     console.log(`[resendVerificationCode] Sending email to:`, email);
-    
-    await sendEmail({ 
-      to: email, 
-      subject: 'Your New Verification Code', 
-      text, 
-      html 
+
+    await sendEmail({
+      to: email,
+      subject: 'Your New Verification Code',
+      text,
+      html
     });
-    
+
     console.log(`[resendVerificationCode] Email sent successfully to:`, email);
-    res.status(200).json({ 
-      message: 'New verification code sent successfully', 
-      expiresIn: 300 
+    res.status(200).json({
+      message: 'New verification code sent successfully',
+      expiresIn: 300
     });
-    
+
   } catch (error) {
     console.error('[resendVerificationCode] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -512,26 +546,26 @@ export async function verificationStatus(req, res) {
   const { email } = req.body;
   const now = Date.now();
   console.log(`[verificationStatus] Request for:`, email);
-  
+
   try {
     const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
     console.log(`[verificationStatus] Users fetched from Supabase`);
-    const pendingUser = allUsers.users.find(u => 
+    const pendingUser = allUsers.users.find(u =>
       u.email === email && !u.email_confirmed_at
     );
-    
+
     if (!pendingUser) {
       console.log(`[verificationStatus] No pending verification for:`, email);
       return res.status(404).json({ error: 'No pending verification for this email' });
     }
-    
+
     const metadata = pendingUser.user_metadata;
     const expiresIn = Math.max(0, Math.ceil((metadata.verification_expires - now) / 1000));
     const waitTime = Math.max(0, Math.ceil((60000 - (now - metadata.last_sent)) / 1000));
-    
+
     console.log(`[verificationStatus] Status for ${email}: expiresIn=${expiresIn}, waitTime=${waitTime}`);
     res.status(200).json({ expiresIn, waitTime });
-    
+
   } catch (error) {
     console.error('[verificationStatus] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -542,20 +576,20 @@ export async function verificationStatus(req, res) {
 export async function login(req, res) {
   const { email, password } = req.body;
   console.log(`[login] Request for:`, email);
-  
+
   if (!email || !password) {
     console.log(`[login] Missing email or password`);
     return res.status(400).json({ error: 'Email and password are required' });
   }
-  
+
   try {
     // فحص إذا كان الإيميل معلق للتحقق
     const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
     console.log(`[login] Users fetched from Supabase`);
-    const pendingUser = allUsers.users.find(u => 
+    const pendingUser = allUsers.users.find(u =>
       u.email === email && !u.email_confirmed_at
     );
-    
+
     if (pendingUser) {
       const metadata = pendingUser.user_metadata;
       const now = Date.now();
@@ -563,35 +597,96 @@ export async function login(req, res) {
       const expiresIn = Math.max(0, Math.ceil((metadata.verification_expires - now) / 1000));
       const restart_signup = expiresIn === 0;
       console.log(`[login] Email is pending verification:`, email);
-      return res.status(403).json({ 
-        error: 'Email is waiting for verification.', 
-        state: 'pending_verification', 
-        waitTime, 
-        expiresIn, 
-        restart_signup 
+      return res.status(403).json({
+        error: 'Email is waiting for verification.',
+        state: 'pending_verification',
+        waitTime,
+        expiresIn,
+        restart_signup
       });
     }
-    
-    // تسجيل الدخول العادي
-    const { data, error } = await supabaseUser.auth.signInWithPassword({ email, password });
+
+    // تسجيل الدخول العادي - استخدام supabaseAdmin للمصادقة
+    const { data, error } = await supabaseAdmin.auth.signInWithPassword({ email, password });
     console.log(`[login] signInWithPassword result:`, { error, hasSession: !!data?.session });
-    
+
     if (error || !data || !data.session) {
       console.log(`[login] Invalid email or password for:`, email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
-    
+
+    // Check 2FA status
+    const { data: security } = await supabaseAdmin
+      .from('user_security')
+      .select('two_factor_enabled, two_factor_secret')
+      .eq('user_id', data.user.id)
+      .single();
+
+    if (security?.two_factor_enabled) {
+      console.log(`[login] 2FA required for:`, email);
+
+
+      // Generate random OTP for email verification
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+      // Store in user_metadata
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+        user_metadata: {
+          login_otp_code: code,
+          login_otp_expires: expires
+        }
+      });
+
+      if (updateError) {
+        console.error('[login] Failed to store OTP:', updateError);
+        // Should we fail? Yes, better safe.
+        return res.status(500).json({ error: 'Failed to generate verification code' });
+      }
+
+      try {
+        const html = renderEmailTemplate({
+          code: code,
+          email: email,
+          templateName: '2fa_email.html'
+        });
+
+        await sendEmail({
+          to: email,
+          subject: 'Login Verification Code',
+          text: `Your login code is: ${code}`,
+          html: html
+        });
+        console.log(`[login] 2FA OTP sent to email:`, email);
+      } catch (emailError) {
+        console.error('[login] Failed to send 2FA email:', emailError);
+      }
+
+      // Encrypt session data to return as temporary token
+      const tempToken = encryptTempToken({
+        session: data.session,
+        user: data.user
+      });
+
+      return res.status(200).json({
+        message: '2-Factor Authentication required. Code sent to email.',
+        state: '2fa_required',
+        userId: data.user.id,
+        tempToken: tempToken
+      });
+    }
+
     // تعيين الـ cookies
     res.cookie('access_token', data.session.access_token, {
       ...COOKIE_OPTIONS,
       maxAge: ACCESS_TOKEN_EXPIRES
     });
-    
+
     res.cookie('refresh_token', data.session.refresh_token, {
       ...COOKIE_OPTIONS,
       maxAge: REFRESH_TOKEN_EXPIRES
     });
-    
+
     console.log(`[login] Login successful for:`, email);
     res.status(200).json({
       message: 'Login successful',
@@ -603,9 +698,95 @@ export async function login(req, res) {
         phone: data.user.user_metadata?.phone,
       }
     });
-    
+
   } catch (error) {
     console.error('[login] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// ===== تسجيل الدخول 2FA =====
+export async function login2FA(req, res) {
+  const { tempToken, code } = req.body;
+  console.log(`[login2FA] Request received`);
+
+  if (!tempToken || !code) {
+    return res.status(400).json({ error: 'Token and code are required' });
+  }
+
+  try {
+    // Decrypt temp token
+    let decryptedData;
+    try {
+      decryptedData = decryptTempToken(tempToken);
+    } catch (e) {
+      console.error('[login2FA] Decryption error:', e);
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    const { session, user } = decryptedData;
+
+    // Verify 2FA code
+    // Verify OTP from metadata
+    // Fetch latest user data to get metadata
+    const { data: { user: currentUser }, error: userError } = await supabaseAdmin.auth.admin.getUserById(user.id);
+
+    if (userError || !currentUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const meta = currentUser.user_metadata || {};
+    const storedCode = meta.login_otp_code;
+    const expires = meta.login_otp_expires;
+
+    if (!storedCode || !expires) {
+      // Fallback check: maybe they are using the app code? 
+      // But the user requested "na77i login2FA" implying replacing the logic.
+      // If we rigidly stick to "only email code", then:
+      return res.status(400).json({ error: 'No verification code found. Please login again.' });
+    }
+
+    if (Date.now() > expires) {
+      return res.status(400).json({ error: 'Verification code expired' });
+    }
+
+    if (storedCode !== code.toString()) {
+      return res.status(401).json({ error: 'Invalid verification code' });
+    }
+
+    // Code is valid - clean up
+    await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      user_metadata: {
+        login_otp_code: null,
+        login_otp_expires: null
+      }
+    });
+
+    // Set cookies
+    res.cookie('access_token', session.access_token, {
+      ...COOKIE_OPTIONS,
+      maxAge: ACCESS_TOKEN_EXPIRES
+    });
+
+    res.cookie('refresh_token', session.refresh_token, {
+      ...COOKIE_OPTIONS,
+      maxAge: REFRESH_TOKEN_EXPIRES
+    });
+
+    console.log(`[login2FA] Login successful for:`, user.email);
+    res.status(200).json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.user_metadata?.first_name,
+        lastName: user.user_metadata?.last_name,
+        phone: user.user_metadata?.phone,
+      }
+    });
+
+  } catch (error) {
+    console.error('[login2FA] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -613,15 +794,15 @@ export async function login(req, res) {
 // ===== تسجيل الخروج =====
 export async function logout(req, res) {
   console.log(`[logout] Request received`);
-  
+
   try {
     // مسح الـ cookies
     res.clearCookie('access_token', COOKIE_OPTIONS);
     res.clearCookie('refresh_token', COOKIE_OPTIONS);
-    
+
     console.log(`[logout] Cookies cleared successfully`);
     res.status(200).json({ message: 'Logged out successfully' });
-    
+
   } catch (error) {
     console.error('[logout] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -631,18 +812,18 @@ export async function logout(req, res) {
 // ===== تحديث الـ Access Token =====
 export async function refreshToken(req, res) {
   console.log(`[refreshToken] Request received`);
-  
+
   try {
     const refreshToken = req.cookies.refresh_token;
-    
+
     if (!refreshToken) {
       console.log(`[refreshToken] No refresh token found`);
       return res.status(401).json({ error: 'No refresh token found' });
     }
-    
+
     // تحديث الـ session
     const { data, error } = await supabaseAdmin.auth.refreshSession({ refresh_token: refreshToken });
-    
+
     if (error || !data?.session) {
       console.error('[refreshToken] Error refreshing session:', error);
       // مسح الـ cookies التالفة
@@ -650,20 +831,20 @@ export async function refreshToken(req, res) {
       res.clearCookie('refresh_token', COOKIE_OPTIONS);
       return res.status(401).json({ error: 'Invalid refresh token' });
     }
-    
+
     // تعيين الـ cookies الجديدة
     res.cookie('access_token', data.session.access_token, {
       ...COOKIE_OPTIONS,
       maxAge: ACCESS_TOKEN_EXPIRES
     });
-    
+
     res.cookie('refresh_token', data.session.refresh_token, {
       ...COOKIE_OPTIONS,
       maxAge: REFRESH_TOKEN_EXPIRES
     });
-    
+
     console.log(`[refreshToken] Token refreshed successfully`);
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Token refreshed successfully',
       user: {
         id: data.user.id,
@@ -673,7 +854,7 @@ export async function refreshToken(req, res) {
         phone: data.user.user_metadata?.phone,
       }
     });
-    
+
   } catch (error) {
     console.error('[refreshToken] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -683,23 +864,23 @@ export async function refreshToken(req, res) {
 // ===== فحص حالة المستخدم =====
 export async function getUser(req, res) {
   console.log(`[getUser] Request received`);
-  
+
   try {
     const accessToken = req.cookies.access_token;
-    
+
     if (!accessToken) {
       console.log(`[getUser] No access token found`);
       return res.status(401).json({ error: 'No access token found' });
     }
-    
+
     // التحقق من صحة الـ token
     const { data: userData, error } = await supabaseAdmin.auth.getUser(accessToken);
-    
+
     if (error || !userData?.user) {
       console.error('[getUser] Error getting user:', error);
       return res.status(401).json({ error: 'Invalid access token' });
     }
-    
+
     console.log(`[getUser] User data retrieved for:`, userData.user.email);
     res.status(200).json({
       user: {
@@ -710,7 +891,7 @@ export async function getUser(req, res) {
         phone: userData.user.user_metadata?.phone,
       }
     });
-    
+
   } catch (error) {
     console.error('[getUser] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -721,10 +902,10 @@ export async function getUser(req, res) {
 export async function debugCodes(req, res) {
   try {
     const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const pendingUsers = allUsers.users.filter(u => 
+    const pendingUsers = allUsers.users.filter(u =>
       !u.email_confirmed_at && u.user_metadata?.status === 'pending_verification'
     );
-    
+
     const activeCodes = pendingUsers.map(user => ({
       email: user.email,
       userId: user.id,
@@ -737,13 +918,13 @@ export async function debugCodes(req, res) {
       },
       createdAt: user.created_at
     }));
-    
+
     console.log(`[debugCodes] Active codes count:`, activeCodes.length);
-    res.status(200).json({ 
-      count: activeCodes.length, 
-      codes: activeCodes 
+    res.status(200).json({
+      count: activeCodes.length,
+      codes: activeCodes
     });
-    
+
   } catch (error) {
     console.error('[debugCodes] Error:', error);
     res.status(500).json({ error: 'Failed to fetch debug info' });
@@ -754,21 +935,21 @@ export async function debugCodes(req, res) {
 export async function clearCodes(req, res) {
   try {
     const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const pendingUsers = allUsers.users.filter(u => 
+    const pendingUsers = allUsers.users.filter(u =>
       !u.email_confirmed_at && u.user_metadata?.status === 'pending_verification'
     );
-    
+
     // حذف المستخدمين المعلقين
-    const deletePromises = pendingUsers.map(user => 
+    const deletePromises = pendingUsers.map(user =>
       supabaseAdmin.auth.admin.deleteUser(user.id)
     );
-    
+
     await Promise.all(deletePromises);
     console.log(`[clearCodes] Cleared pending users:`, pendingUsers.length);
-    res.status(200).json({ 
-      message: `Cleared ${pendingUsers.length} pending verification users` 
+    res.status(200).json({
+      message: `Cleared ${pendingUsers.length} pending verification users`
     });
-    
+
   } catch (error) {
     console.error('[clearCodes] Error:', error);
     res.status(500).json({ error: 'Failed to clear codes' });
@@ -826,7 +1007,7 @@ export async function verifyEmailUpdateCode(req, res) {
         pending_email: null,
       },
     });
-    console.log("data ---------  ",data);
+    console.log("data ---------  ", data);
     if (error) {
       console.error('Supabase email update error:', error);
       return res.status(500).json({ error: 'فشل في تغيير الإيميل', details: error.message });
@@ -848,6 +1029,7 @@ export async function verifyPassword(req, res) {
     const { data: userData, error: userError } = await supabaseAdmin.from('user').select('password').eq('email', email).single();
     if (userError || !userData) return res.status(404).json({ valid: false, error: 'User not found' });
     // Compare password (plain text)
+    console.log(userData.password, password, "password-----------------")
     if (userData.password === password) {
       return res.json({ valid: true });
     } else {
@@ -866,7 +1048,7 @@ export async function sendEmailOtpCode(req, res) {
     const { otpKey } = req.body;
     const email = req.body.newEmail || req.body.email;
     console.log("email", email, otpKey);
-    console.log("userId", userId , "email", email, "otpKey", otpKey) ;
+    console.log("userId", userId, "email", email, "otpKey", otpKey);
     if (!email || !otpKey) return res.status(400).json({ error: 'Email and otpKey are required' });
     // Determine entityType based on otpKey
     let entityType = 'all';
@@ -899,7 +1081,7 @@ export async function verifyEmailOtpCode(req, res, next) {
   try {
     const userId = req.user.id;
     const { code, otpKey } = req.body;
-    const {email} = req.body.clinicData;
+    const { email } = req.body.clinicData;
     console.log("verifyEmailOtpCode----------------", email, code, otpKey);
     if (!email || !code || !otpKey) {
       return res.status(400).json({ error: 'Email, code, and otpKey are required' });
@@ -965,7 +1147,6 @@ export async function sendPasswordResetOtp(req, res) {
   }
 }
 
-import crypto from 'crypto';
 export async function verifyResetOtp(req, res) {
   try {
     const { email, code } = req.body;
@@ -1015,5 +1196,172 @@ export async function updatePasswordWithResetToken(req, res) {
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// ===== Account Deletion - Step 1: Initiate =====
+export async function initiateAccountDeletion(req, res) {
+  try {
+    const { password } = req.body;
+    const userId = req.user?.id;
+    const userEmail = req.user?.email;
+
+    console.log(`[initiateAccountDeletion] Request for user:`, userId);
+
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+
+    // 1. Verify password
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+      email: userEmail,
+      password: password
+    });
+
+    if (authError || !authData.user) {
+      console.log(`[initiateAccountDeletion] Password verification failed for:`, userEmail);
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+
+    // 2. Check if user owns any clinics
+    const { data: ownedClinics, error: clinicsError } = await supabaseAdmin
+      .from('clinics')
+      .select('id, clinic_name')
+      .eq('created_by', userId);
+
+    if (clinicsError) {
+      console.error('[initiateAccountDeletion] Error checking clinics:', clinicsError);
+      return res.status(500).json({ error: 'Failed to check clinic ownership' });
+    }
+
+    if (ownedClinics && ownedClinics.length > 0) {
+      console.log(`[initiateAccountDeletion] User owns ${ownedClinics.length} clinic(s)`);
+      return res.status(400).json({
+        error: 'You cannot delete your account while you own clinics. Please delete or transfer ownership of all your clinics first.',
+        ownedClinics: ownedClinics.map(c => ({
+          id: c.id,
+          name: c.clinic_name
+        }))
+      });
+    }
+
+    // 3. Generate OTP
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // 4. Store OTP in user_metadata
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        delete_account_otp: code,
+        delete_account_otp_expires: expires
+      }
+    });
+
+    if (updateError) {
+      console.error('[initiateAccountDeletion] Failed to store OTP:', updateError);
+      return res.status(500).json({ error: 'Failed to generate verification code' });
+    }
+
+    // 5. Send OTP email
+    try {
+      const html = renderEmailTemplate({
+        code: code,
+        email: userEmail,
+        templateName: '2fa_email.html'
+      });
+
+      await sendEmail({
+        to: userEmail,
+        subject: 'Account Deletion Verification Code',
+        text: `Your account deletion verification code is: ${code}. This code will expire in 10 minutes.`,
+        html: html
+      });
+
+      console.log(`[initiateAccountDeletion] OTP sent to:`, userEmail);
+    } catch (emailError) {
+      console.error('[initiateAccountDeletion] Failed to send email:', emailError);
+      return res.status(500).json({ error: 'Failed to send verification email' });
+    }
+
+    res.status(200).json({
+      message: 'Verification code sent to your email',
+      expiresIn: 600 // 10 minutes in seconds
+    });
+
+  } catch (error) {
+    console.error('[initiateAccountDeletion] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// ===== Account Deletion - Step 2: Confirm =====
+export async function confirmAccountDeletion(req, res) {
+  try {
+    const { code } = req.body;
+    const userId = req.user?.id;
+    const userEmail = req.user?.email;
+
+    console.log(`[confirmAccountDeletion] Request for user:`, userId);
+
+    if (!code) {
+      return res.status(400).json({ error: 'Verification code is required' });
+    }
+
+    // 1. Fetch user metadata to verify OTP
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
+
+    if (userError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const meta = user.user_metadata || {};
+    const storedCode = meta.delete_account_otp;
+    const expires = meta.delete_account_otp_expires;
+
+    // 2. Verify OTP
+    if (!storedCode || !expires) {
+      return res.status(400).json({
+        error: 'No deletion request found. Please initiate account deletion first.'
+      });
+    }
+
+    if (Date.now() > expires) {
+      return res.status(400).json({ error: 'Verification code expired' });
+    }
+
+    if (storedCode !== code.toString()) {
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    // 3. Double-check clinic ownership (safety check)
+    const { data: ownedClinics } = await supabaseAdmin
+      .from('clinics')
+      .select('id')
+      .eq('created_by', userId);
+
+    if (ownedClinics && ownedClinics.length > 0) {
+      console.log(`[confirmAccountDeletion] User still owns clinics, blocking deletion`);
+      return res.status(400).json({
+        error: 'You still own clinics. Please delete or transfer ownership first.'
+      });
+    }
+
+    // 4. Delete user from Supabase Auth (cascade will handle related records)
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+    if (deleteError) {
+      console.error('[confirmAccountDeletion] Failed to delete user:', deleteError);
+      return res.status(500).json({ error: 'Failed to delete account' });
+    }
+
+    console.log(`[confirmAccountDeletion] Account deleted successfully:`, userEmail);
+
+    res.status(200).json({
+      message: 'Account deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('[confirmAccountDeletion] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }

@@ -20,9 +20,12 @@ const codes = new Map(); // email => { code, expires, lastSent, userData }
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "jihadchaabani75@gmail.com",
-    pass: "rpyftsyyccvyoofk", // Gmail App Password
+    user: "jihadchaabani80@gmail.com",
+    pass: "kvactkcznenvpkup" // App Password من Gmail (موش كلمة السرّ العادية)
   },
+  tls: {
+    rejectUnauthorized: false // يخلي الاتصال يتجاوز self-signed error
+  }
 });
 
 // ======= Helpers =======

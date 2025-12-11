@@ -1102,9 +1102,9 @@ const fetchJsonFromUrl = async (url) => {
 
 // Helper function to generate URLs based on clinic_id, patient_id, report type and ID (Updated path structure)
 const generateReportUrls = (clinicId, patientId, reportType, reportId) => {
-  const baseUrl = `https://intukonwqiiyokuagplg.supabase.co/storage/v1/object/public/reports`;
+  const baseUrl = `https://ocsfmpiciulmcrejifwo.supabase.co/storage/v1/object/public/reports`;
   const data_url = `${baseUrl}/${clinicId}/${patientId}/${reportType}/${reportId}/`;
-  let report_url = `${data_url}reportData.json`;
+  let report_url = `${data_url}report.json`;
   return { report_url, data_url };
 };
 
@@ -1301,17 +1301,23 @@ export const getReportDataWithJsonPost = async (req, res) => {
       const { data, error } = await supabaseAdmin
         .storage
         .from('reports')
-        .createSignedUrl(`${patient.clinic_id}/${report.patient_id}/pano/${report.report_id}/pano.jpg`, 60 * 60); // 1 hour
+        .createSignedUrl(`${patient.clinic_id}/${report.patient_id}/pano/${report.report_id}/original.png`, 60 * 1); 
+        // 1 hour
+        console.log('pano_image_url-----------------------------:', data?.signedUrl, error);
       pano_image_url = data?.signedUrl || null;
     }
 
     // Add signed cbct image URL if type is cbct
     let cbct_image_url = null;
+    console.log(report.raport_type,'report.raport_type')
     if (report.raport_type === 'cbct') {
+      console.log('CBCT Image URL-----------------------------:', `${patient.clinic_id}/${report.patient_id}/cbct/${report.report_id}/original.png`);
       const { data, error } = await supabaseAdmin
         .storage
         .from('reports')
-        .createSignedUrl(`${patient.clinic_id}/${report.patient_id}/cbct/${report.report_id}/cbct.jpg`, 60 * 60); // 1 hour
+        .createSignedUrl(`${patient.clinic_id}/${report.patient_id}/cbct/${report.report_id}/original.png`, 60 * 1); // 1 hour
+      
+      console.log("data",data)
       cbct_image_url = data?.signedUrl || null;
       console.log('CBCT Image URL-----------------------------:', cbct_image_url, error);
     }
@@ -1322,6 +1328,7 @@ export const getReportDataWithJsonPost = async (req, res) => {
       const jsonData = await fetchJsonFromUrl(report_url);
 
       // Return combined data
+      console.log('pano_image_urlpano_image_urlpano_image_url Data-----------------------------:', pano_image_url, cbct_image_url);
       res.json({
         success: true,
         status: 'success',
@@ -1332,8 +1339,12 @@ export const getReportDataWithJsonPost = async (req, res) => {
           ...(pano_image_url && { pano_image_url }),
           ...(cbct_image_url && { cbct_image_url })
         },
+
+
+        
         data: jsonData, // Main JSON data
         _meta: {
+          metadata:report.metadata,
           fetched_at: new Date().toISOString(),
           clinic_id: patient.clinic_id,
           data_source: report_url
@@ -1344,7 +1355,7 @@ export const getReportDataWithJsonPost = async (req, res) => {
       // If JSON fetch fails, return report info with error
       console.error('💥 JSON fetch failed:', fetchError.message);
       
-      res.status(206).json({ // 206 Partial Content
+      res.status(206).yreza({ // 206 Partial Content
         success: true,
         status: 'partial_success',
         report: {
@@ -1357,6 +1368,7 @@ export const getReportDataWithJsonPost = async (req, res) => {
         data: null,
         error: `Could not fetch JSON data: ${fetchError.message}`,
         _meta: {
+          metadata:report.metadata,
           fetched_at: new Date().toISOString(),
           clinic_id: patient.clinic_id,
           data_source: report_url,
@@ -1642,4 +1654,162 @@ export async function generate3dModelReport(report_id) {
   }
 
   return { success: true };
-}
+}// ✅ Update Report Data JSON in Storage
+export const updateReportData = async (req, res) => {
+  console.log(' 👌👌👌👌👌👌👌👌👌Updating report data...');
+    const { report_id, report_data } = req.body;
+    const userId = req.user?.id;
+
+    if (!report_id) {
+        return res.status(400).json({
+            success: false, 
+            message: 'Report ID is required',
+            error: 'Report ID is required',
+            status: 'error'
+        });
+    }
+
+    if (!report_data) {
+        return res.status(400).json({
+            success: false, 
+            message: 'Report data is required',
+            error: 'Report data is required',
+            status: 'error'
+        });
+    }
+
+    try {
+        // 1. Get report to verify it exists and get patient_id and report type
+        const { data: report, error: reportError } = await supabaseUser
+            .from('report_ai')
+            .select('patient_id, raport_type')
+            .eq('report_id', report_id)
+            .single();
+
+        if (reportError || !report) {
+            console.error('Report fetch error:', reportError);
+            return res.status(404).json({
+                success: false,
+                message: 'Report not found',
+                error: 'Report not found',
+                status: 'error'
+            });
+        }
+
+        // 2. Get patient to get clinic_id
+        const { data: patient, error: patientError } = await supabaseUser
+            .from('patients')
+            .select('clinic_id')
+            .eq('id', report.patient_id)
+            .single();
+
+        if (patientError || !patient) {
+            console.error('Patient fetch error:', patientError);
+            return res.status(404).json({
+                success: false,
+                message: 'Patient not found',
+                error: 'Patient not found',
+                status: 'error'
+            });
+        }
+
+        const clinicId = patient.clinic_id;
+
+        // 3. Check if user is a member of this clinic
+        const { data: userMembership, error: membershipError } = await supabaseUser
+            .from('user_clinic_roles')
+            .select('role')
+            .eq('user_id', userId)
+            .eq('clinic_id', clinicId)
+            .maybeSingle();
+
+        if (membershipError) {
+            console.error('Membership check error:', membershipError);
+            return res.status(500).json({
+                success: false,
+                message: 'Database error',
+                error: 'Database error',
+                status: 'error'
+            });
+        }
+
+        if (!userMembership) {
+          
+            return res.status(403).json({
+                success: false,
+                message: 'You must be a member of this clinic to update reports',
+                error: 'You must be a member of this clinic to update reports',
+                status: 'error'
+            });
+        }
+
+        // 4. Upload/Update the report.json file in Supabase storage
+        const reportPath = `${clinicId}/${report.patient_id}/${report.raport_type}/${report_id}/report.json`;
+
+        console.log('📤 Uploading report data to storage:', reportPath);
+
+        // Convert report_data to JSON string
+        console.log('Report data: ************* ', report_data);
+        const jsonContent = JSON.stringify(report_data, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+
+        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+            .from('reports')
+            .upload(reportPath, blob, {
+                contentType: 'application/json',
+                upsert: true // This will overwrite if the file already exists
+            });
+
+        if (uploadError) {
+            console.error('Storage upload error:', uploadError);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to upload report data to storage',
+                status: 'error',
+                details: uploadError.message
+            });
+        }
+
+        console.log('✅ Report data uploaded successfully:', uploadData);
+
+        // 5. Update the report's last_upload timestamp
+        const { error: updateError } = await supabaseUser
+            .from('report_ai')
+            .update({
+                last_upload: new Date().toISOString()
+            })
+            .eq('report_id', report_id);
+
+        if (updateError) {
+            console.error('Report timestamp update error:', updateError);
+            // Don't fail the request if timestamp update fails
+        }
+
+        // 6. Generate the public URL for the uploaded file
+        const { data: publicUrlData } = supabaseAdmin.storage
+            .from('reports')
+            .getPublicUrl(reportPath);
+
+        res.json({
+            success: true,
+            message: 'Report data updated successfully',
+            status: 'success',
+            report: {
+                id: report_id,
+                patient_id: report.patient_id,
+                clinic_id: clinicId,
+                raport_type: report.raport_type,
+                storage_path: reportPath,
+                public_url: publicUrlData.publicUrl
+            }
+        });
+
+    } catch (err) {
+        console.error('Unexpected error:', err);
+        res.status(500).json({
+            success: false,
+            error: err.message,
+            status: 'error'
+        });
+    }
+};

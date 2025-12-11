@@ -1,18 +1,20 @@
 import { supabaseUser } from '../supabaseClient.js';
 import { hasPermission, isClinicCreator } from '../utils/permissionUtils.js';
+import { notifyTreatingDoctors, notifyPatientUpdate } from '../utils/notification.js';
+
 
 // ✅ Add new patient
 export const addPatient = async (req, res) => {
-  const { 
-    first_name, 
-    last_name, 
-    gender, 
-    date_of_birth, 
-    email, 
-    phone, 
+  const {
+    first_name,
+    last_name,
+    gender,
+    date_of_birth,
+    email,
+    phone,
     address,
     clinicId,
-    treating_doctor_id 
+    treating_doctor_id
   } = req.body;
   const userId = req.user?.id;
   console.log('treating_doctor_id', treating_doctor_id);
@@ -21,8 +23,8 @@ export const addPatient = async (req, res) => {
   }
 
   if (!first_name || !last_name || !gender || !date_of_birth || !email) {
-    return res.status(400).json({ 
-      error: 'First name, last name, gender, date of birth, and email are required' 
+    return res.status(400).json({
+      error: 'First name, last name, gender, date of birth, and email are required'
     });
   }
 
@@ -53,8 +55,8 @@ export const addPatient = async (req, res) => {
     }
 
     if (!userMembership) {
-      return res.status(403).json({ 
-        error: 'You must be a member of this clinic to add patients' 
+      return res.status(403).json({
+        error: 'You must be a member of this clinic to add patients'
       });
     }
 
@@ -103,7 +105,7 @@ export const addPatient = async (req, res) => {
     if (treating_doctor_id && Array.isArray(treating_doctor_id) && treating_doctor_id.length > 0) {
       console.log('Requested treating_doctor_id:', treating_doctor_id);
       console.log('Clinic ID:', clinicId);
-      
+
       // Check if all treating doctors are members of this clinic
       const { data: doctorMemberships, error: doctorCheckError } = await supabaseUser
         .from('user_clinic_roles')
@@ -121,10 +123,10 @@ export const addPatient = async (req, res) => {
       // Get valid doctor IDs (those who are clinic members)
       const validDoctorIds = doctorMemberships?.map(membership => membership.user_id) || [];
       const invalidDoctorIds = treating_doctor_id.filter(id => !validDoctorIds.includes(id));
-      
+
       console.log('validDoctorIds:', validDoctorIds);
       console.log('invalidDoctorIds:', invalidDoctorIds);
-      
+
       if (invalidDoctorIds.length > 0) {
         console.error('Some treating doctors are not members of this clinic:', invalidDoctorIds);
       }
@@ -163,7 +165,16 @@ export const addPatient = async (req, res) => {
       .eq('id', clinicId)
       .single();
 
-
+    // 7. Send notifications to treating doctors about the new patient
+    await notifyTreatingDoctors({
+      treating_doctor_ids: treating_doctor_id,
+      clinic_id: clinicId,
+      patient_id: patient.id,
+      patient_first_name: first_name,
+      patient_last_name: last_name,
+      clinic_name: clinicInfo?.clinic_name,
+      added_by: userId
+    });
 
     res.status(201).json({
       message: 'Patient added successfully',
@@ -196,7 +207,7 @@ export const getPatients = async (req, res) => {
   const { clinicId } = req.body;
   const userId = req.user?.id;
   console.log('clinicId', clinicId);
-  console.log('userId', userId);    
+  console.log('userId', userId);
   if (!clinicId) {
     return res.status(400).json({ error: 'Clinic ID is required' });
   }
@@ -216,14 +227,14 @@ export const getPatients = async (req, res) => {
     }
 
     if (!userMembership) {
-      return res.status(403).json({ 
-        error: 'You must be a member of this clinic to view patients' 
+      return res.status(403).json({
+        error: 'You must be a member of this clinic to view patients'
       });
     }
 
     // 2. Check if user is clinic creator
     const isCreator = await isClinicCreator(userId, clinicId);
-    
+
     // 3. Get user's role in this clinic
     const userRole = userMembership.role;
     const isFullAccess = userRole === 'full_access';
@@ -268,7 +279,7 @@ export const getPatients = async (req, res) => {
       const treatingDoctors = patient.treatments?.map(treatment => treatment.user).filter(Boolean) || [];
       const isCurrentUserTreatingDoctor = treatingDoctors.some(doctor => doctor.user_id === userId);
       const isFavorite = favoritePatientIds.includes(patient.id);
-      
+
       return {
         ...patient,
         treating_doctors: treatingDoctors.map(doctor => ({
@@ -296,26 +307,21 @@ export const getPatients = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-// ✅ Get single patient
 export const getPatient = async (req, res) => {
   const { patientId } = req.params;
   const userId = req.user?.id;
 
   if (!patientId) {
-    return res.status(400).json({ error: 'Patient ID is required' });
+    return res.status(400).json({ error: "Patient ID is required" });
   }
 
   try {
-    // 1. Get patient with clinic info, treating doctors, and reports
+    // ✅ 1. نجيبو المريض بالـ reports بدون clinic_id من report_ai
     const { data: patient, error: patientError } = await supabaseUser
-      .from('patients')
+      .from("patients")
       .select(`
         *,
-        clinics (
-          id,
-          clinic_name
-        ),
+        clinics ( id, clinic_name ),
         treatments (
           treating_doctor_id,
           user!treating_doctor_id (
@@ -326,88 +332,95 @@ export const getPatient = async (req, res) => {
         ),
         report_ai (
           report_id,
+          raport_type,
           created_at,
           last_upload,
-          raport_type,
           status
         )
       `)
-      .eq('id', patientId)
+      .eq("id", patientId)
       .single();
 
     if (patientError) {
-      console.error('Patient fetch error:', patientError);
-      return res.status(404).json({ error: 'Patient not found' });
+      console.error("Patient fetch error:", patientError);
+      return res.status(404).json({ error: "Patient not found" });
     }
 
-    // 2. Check if user is clinic creator
+    // ✅ 2. التشيك على الصلاحيات
     const isCreator = await isClinicCreator(userId, patient.clinic_id);
-    
-    // 3. Check if user is the treating doctor for this patient
-    const { data: treatment, error: treatmentError } = await supabaseUser
-      .from('treatments')
-      .select('id')
-      .eq('patient_id', patientId)
-      .eq('treating_doctor_id', userId)
-      .eq('clinic_id', patient.clinic_id)
-      .maybeSingle();
 
-    if (treatmentError) {
-      console.error('Treatment check error:', treatmentError);
-    }
+    const { data: treatment } = await supabaseUser
+      .from("treatments")
+      .select("id")
+      .eq("patient_id", patientId)
+      .eq("treating_doctor_id", userId)
+      .eq("clinic_id", patient.clinic_id)
+      .maybeSingle();
 
     const isTreatingDoctor = !!treatment;
 
-    // 4. Only allow access if user is creator or treating doctor
     if (!isCreator && !isTreatingDoctor) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to view this patient. Only the clinic creator or the treating doctor can view patient details.' 
+      return res.status(403).json({
+        error:
+          "You do not have permission to view this patient. Only the clinic creator or the treating doctor can view patient details.",
       });
     }
 
-    // 5. Get user's role in this clinic
-    const { data: userRole, error: roleError } = await supabaseUser
-      .from('user_clinic_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('clinic_id', patient.clinic_id)
+    // ✅ 3. جلب الدور
+    const { data: userRole } = await supabaseUser
+      .from("user_clinic_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("clinic_id", patient.clinic_id)
       .maybeSingle();
 
-    if (roleError) {
-      console.error('Role fetch error:', roleError);
-    }
-
-    // 6. Determine user's access level
     const userAccessLevel = {
-      isCreator: isCreator,
-      isTreatingDoctor: isTreatingDoctor,
-      isFullAccess: userRole?.role === 'full_access',
-      isClinicAccess: userRole?.role === 'clinic_access',
-      role: userRole?.role || 'unknown'
+      isCreator,
+      isTreatingDoctor,
+      isFullAccess: userRole?.role === "full_access",
+      isClinicAccess: userRole?.role === "clinic_access",
+      role: userRole?.role || "unknown",
     };
 
-    // 7. Check if patient is in user's favorites
-    const { data: favorite, error: favoriteError } = await supabaseUser
-      .from('patient_favorites')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('patient_id', patientId)
+    // ✅ 4. هل المريض في المفضلة؟
+    const { data: favorite } = await supabaseUser
+      .from("patient_favorites")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("patient_id", patientId)
       .maybeSingle();
-
-    if (favoriteError) {
-      console.error('Favorite check error:', favoriteError);
-    }
 
     const isFavorite = !!favorite;
 
-    // Process treating doctors information
-    const treatingDoctors = patient.treatments?.map(treatment => treatment.user).filter(Boolean) || [];
+    // ✅ 5. الأطباء المعالجين
+    const treatingDoctors =
+      patient.treatments?.map((t) => t.user).filter(Boolean) || [];
 
-    // Process reports information
+    // ✅ 6. نركب مسار الصورة باستعمال patient.clinic_id
     const reports = patient.report_ai || [];
+    const reportsWithImages = await Promise.all(
+      reports.map(async (report) => {
+        const path = `${patient.clinic_id}/${patientId}/${report.raport_type}/${report.report_id}/original.png`;
 
+        // نحصل على URL من Supabase
+        const { data: publicUrlData } = supabaseUser.storage
+          .from("reports") // اسم الـ bucket
+          .getPublicUrl(path);
+
+        return {
+          id: report.report_id,
+          created_at: report.created_at,
+          last_upload: report.last_upload,
+          raport_type: report.raport_type,
+          status: report.status,
+          image_url: publicUrlData?.publicUrl || null,
+        };
+      })
+    );
+
+    // ✅ 7. نرجع الداتا كاملة
     res.json({
-      message: 'Patient retrieved successfully',
+      message: "Patient retrieved successfully",
       patient: {
         id: patient.id,
         first_name: patient.first_name,
@@ -419,41 +432,36 @@ export const getPatient = async (req, res) => {
         address: patient.address,
         created_at: patient.created_at,
         clinic: patient.clinics,
-        treating_doctors: treatingDoctors.map(doctor => ({
+        treating_doctors: treatingDoctors.map((doctor) => ({
           id: doctor.user_id,
           first_name: doctor.firstName,
-          last_name: doctor.lastName
+          last_name: doctor.lastName,
         })),
-        reports: reports.map(report => ({
-          id: report.report_id,
-          created_at: report.created_at,
-          last_upload: report.last_upload,
-          raport_type: report.raport_type,
-          status: report.status,
-        })),
-        isFavorite: isFavorite
+        reports: reportsWithImages,
+        isFavorite,
       },
-      userAccess: userAccessLevel
+      userAccess: userAccessLevel,
     });
-
   } catch (err) {
-    console.error('Unexpected error:', err);
+    console.error("Unexpected error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
+
+
 // ✅ Update patient
 export const updatePatient = async (req, res) => {
-  const { 
+  const {
     patientId,
-    first_name, 
-    last_name, 
-    gender, 
-    date_of_birth, 
-    email, 
-    phone, 
+    first_name,
+    last_name,
+    gender,
+    date_of_birth,
+    email,
+    phone,
     address,
-    treating_doctor_id 
+    treating_doctor_id
   } = req.body;
   const userId = req.user?.id;
 
@@ -477,10 +485,10 @@ export const updatePatient = async (req, res) => {
     // 2. Check if user has permission to edit patients
     const isCreator = await isClinicCreator(userId, existingPatient.clinic_id);
     const canEditPatient = await hasPermission(userId, existingPatient.clinic_id, 'edit_patient');
-    
+
     if (!isCreator && !canEditPatient) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to edit patients in this clinic' 
+      return res.status(403).json({
+        error: 'You do not have permission to edit patients in this clinic'
       });
     }
 
@@ -520,10 +528,19 @@ export const updatePatient = async (req, res) => {
     }
 
     // 5. Update treating doctors if provided
+    let newlyAssignedDoctorIds = [];
     if (treating_doctor_id && Array.isArray(treating_doctor_id)) {
       console.log('Updating treating doctors for patient:', patientId);
       console.log('Requested treating_doctor_id:', treating_doctor_id);
-      
+
+      // Get existing treating doctors before deletion
+      const { data: existingTreatments } = await supabaseUser
+        .from('treatments')
+        .select('treating_doctor_id')
+        .eq('patient_id', patientId);
+
+      const existingDoctorIds = existingTreatments?.map(t => t.treating_doctor_id) || [];
+
       // First, delete existing treatments for this patient
       const { error: deleteError } = await supabaseUser
         .from('treatments')
@@ -553,13 +570,17 @@ export const updatePatient = async (req, res) => {
       // Get valid doctor IDs (those who are clinic members)
       const validDoctorIds = doctorMemberships?.map(membership => membership.user_id) || [];
       const invalidDoctorIds = treating_doctor_id.filter(id => !validDoctorIds.includes(id));
-      
+
       console.log('validDoctorIds:', validDoctorIds);
       console.log('invalidDoctorIds:', invalidDoctorIds);
-      
+
       if (invalidDoctorIds.length > 0) {
         console.error('Some treating doctors are not members of this clinic:', invalidDoctorIds);
       }
+
+      // Identify newly assigned doctors (those not in the existing list)
+      newlyAssignedDoctorIds = validDoctorIds.filter(id => !existingDoctorIds.includes(id));
+      console.log('Newly assigned doctor IDs:', newlyAssignedDoctorIds);
 
       // Create new treatment entries for valid doctors
       if (validDoctorIds.length > 0) {
@@ -586,6 +607,48 @@ export const updatePatient = async (req, res) => {
       }
     }
 
+
+
+
+    // 6. Get clinic and doctor information for notification
+    const { data: clinicInfo, error: clinicError } = await supabaseUser
+      .from('clinics')
+      .select('clinic_name')
+      .eq('id', existingPatient.clinic_id)
+      .single();
+
+    const { data: doctorInfo, error: doctorError } = await supabaseUser
+      .from('user')
+      .select('firstName, lastName')
+      .eq('user_id', userId)
+      .single();
+
+    // 7. Send notification to clinic creator and full_access users about patient update
+    if (clinicInfo && doctorInfo) {
+      await notifyPatientUpdate({
+        patient_id: patientId,
+        clinic_id: existingPatient.clinic_id,
+        patient_first_name: updatedPatient.first_name,
+        patient_last_name: updatedPatient.last_name,
+        clinic_name: clinicInfo.clinic_name,
+        updated_by: userId,
+        doctor_first_name: doctorInfo.firstName,
+        doctor_last_name: doctorInfo.lastName
+      });
+    }
+
+    // 8. Send notification to newly assigned treating doctors
+    if (newlyAssignedDoctorIds.length > 0 && clinicInfo) {
+      await notifyTreatingDoctors({
+        treating_doctor_ids: newlyAssignedDoctorIds,
+        clinic_id: existingPatient.clinic_id,
+        patient_id: patientId,
+        patient_first_name: updatedPatient.first_name,
+        patient_last_name: updatedPatient.last_name,
+        clinic_name: clinicInfo.clinic_name,
+        added_by: userId
+      });
+    }
 
 
     res.json({
@@ -624,10 +687,10 @@ export const deletePatient = async (req, res) => {
     // 2. Check if user has permission to delete patients
     const isCreator = await isClinicCreator(userId, existingPatient.clinic_id);
     const canDeletePatient = await hasPermission(userId, existingPatient.clinic_id, 'delete_patient');
-    
+
     if (!isCreator && !canDeletePatient) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to delete patients in this clinic' 
+      return res.status(403).json({
+        error: 'You do not have permission to delete patients in this clinic'
       });
     }
 
@@ -656,7 +719,7 @@ export const deletePatient = async (req, res) => {
     console.error('Unexpected error:', err);
     res.status(500).json({ error: err.message });
   }
-}; 
+};
 
 // ✅ Add/Remove patient from favorites
 export const addToFavorites = async (req, res) => {
@@ -701,8 +764,8 @@ export const addToFavorites = async (req, res) => {
     }
 
     if (!userMembership) {
-      return res.status(403).json({ 
-        error: 'You must be a member of this clinic to add patients to favorites' 
+      return res.status(403).json({
+        error: 'You must be a member of this clinic to add patients to favorites'
       });
     }
 
@@ -876,8 +939,8 @@ export const getFavoritePatients = async (req, res) => {
     }
 
     if (!userMembership) {
-      return res.status(403).json({ 
-        error: 'You must be a member of this clinic to view favorite patients' 
+      return res.status(403).json({
+        error: 'You must be a member of this clinic to view favorite patients'
       });
     }
 
@@ -911,7 +974,7 @@ export const getFavoritePatients = async (req, res) => {
       const patient = favorite.patients;
       const treatingDoctors = patient.treatments?.map(treatment => treatment.user).filter(Boolean) || [];
       const isCurrentUserTreatingDoctor = treatingDoctors.some(doctor => doctor.user_id === userId);
-      
+
       return {
         favorite_id: favorite.id,
         added_at: favorite.created_at,

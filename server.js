@@ -11,7 +11,8 @@ import permissionRoutes from './routes/permissionRoutes.js';
 import teethRoutes from './routes/teethRoutes.js';
 import patientRoutes from './routes/patientRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
-
+import notificationRoutes from './routes/notificationRouter.js';
+import securityRoutes from './routes/securityRoutes.js';
 import cookieParser from 'cookie-parser';
 import { initializeSocket } from './controllers/socketController.js';
 
@@ -31,12 +32,17 @@ const io = new Server(server, {
 // Initialize WebSocket functionality
 const socketManager = initializeSocket(io);
 
+// Export io instance for use in other modules
+export { io };
+
+// Make io available in app.locals for controllers
+app.locals.io = io;
 
 
 app.use(cors({
-    origin: 'http://localhost:3000', // your frontend URL
-    credentials: true
-  }));
+  origin: 'http://localhost:3000', // your frontend URL
+  credentials: true
+}));
 app.use(json());
 app.use(cookieParser());
 app.use('/api/auth', authRoutes);
@@ -47,8 +53,8 @@ app.use('/api/permissions', permissionRoutes);
 app.use('/api/teeth', teethRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/reports', reportRoutes);
-
-
+app.use('/api/notifications', notificationRoutes)
+app.use('/api/security', securityRoutes);
 // Serve static files
 app.use('/uploads', express.static('uploads'));
 
@@ -60,7 +66,7 @@ app.get('/api/socket/status', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = 5000;
 
 server.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);

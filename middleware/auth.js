@@ -1,11 +1,11 @@
 import { supabaseUser } from '../supabaseClient.js';
 
 export async function authMiddleware(req, res, next) {
-  console.log('authMiddleware - HTTP-Only Cookies*****************');
+  console.log('fetch notification ---------------')
+
   // قراءة الـ tokens من الـ HTTP-only cookies فقط
   let accessToken = req.cookies?.access_token;
   let refreshToken = req.cookies?.refresh_token;
-console.log('Access Token:---------------------------8888888888888888', req.cookies);
   // التحقق من وجود الـ token في الـ headers (للـ API calls)
   if (!accessToken && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     accessToken = req.headers.authorization.split(' ')[1];
@@ -17,6 +17,7 @@ console.log('Access Token:---------------------------8888888888888888', req.cook
       code: 'NO_TOKEN'
     });
   }
+
 
   try {
     // محاولة التحقق من الـ access token

@@ -1,7 +1,8 @@
-import {supabaseAdmin, supabaseUser} from '../supabaseClient.js';
+import { supabaseAdmin, supabaseUser } from '../supabaseClient.js';
 import jwt from 'jsonwebtoken';
 import { createTransport } from 'nodemailer';
 import { hasPermission, isClinicCreator } from '../utils/permissionUtils.js';
+import { addNotification, updateNotification, updateNotificationStatus } from '../utils/notification.js';
 
 export async function createClinic(req, res) {
   // Get userId from auth middleware
@@ -22,7 +23,7 @@ export async function createClinic(req, res) {
         },
       ])
       .select()
-      .single();
+      .maybeSingle();
     console.log("clinic", clinic);
     console.log("clinicError", clinicError);
     if (clinicError) {
@@ -54,45 +55,45 @@ export async function createClinic(req, res) {
 
 
 export const updateClinic = async (req, res) => {
-    const { clinicId } = req.params;
-    const { name, phone, address, location } = req.body;
-    const userId = req.user?.id;
-  
-    try {
-      const { data, error } = await supabaseUser
-        .from('clinics')
-        .update({ name, phone, address, location })
-        .eq('id', clinicId)
-        .eq('created_by', userId)
-        .select()
-        .single();
-  
-      if (error) throw error;
-  
-      res.json({ clinic: data });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  };
-  
+  const { clinicId } = req.params;
+  const { name, phone, address, location } = req.body;
+  const userId = req.user?.id;
+
+  try {
+    const { data, error } = await supabaseUser
+      .from('clinics')
+      .update({ name, phone, address, location })
+      .eq('id', clinicId)
+      .eq('created_by', userId)
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+
+    res.json({ clinic: data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const deleteClinic = async (req, res) => {
-    const { clinicId } = req.params;
-    const userId = req.user?.id;
-  
-    try {
-      const { error } = await supabaseUser
-        .from('clinics')
-        .delete()
-        .eq('id', clinicId)
-        .eq('created_by', userId);
-  
-      if (error) throw error;
-  
-      res.status(200).json({ message: 'Clinic deleted successfully' });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  };
+  const { clinicId } = req.params;
+  const userId = req.user?.id;
+
+  try {
+    const { error } = await supabaseUser
+      .from('clinics')
+      .delete()
+      .eq('id', clinicId)
+      .eq('created_by', userId);
+
+    if (error) throw error;
+
+    res.status(200).json({ message: 'Clinic deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 export const getUserClinics = async (req, res) => {
   const userId = req.user?.id;
@@ -131,7 +132,7 @@ export const updateClinicEmail = async (req, res) => {
   const userId = req.user?.id;
   console.log("updateClinicEmail----------------", email, clinicId);
   console.log("req.body", req.body);
-  
+
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
@@ -143,15 +144,15 @@ export const updateClinicEmail = async (req, res) => {
   try {
     // 1. Check if user is clinic creator (creators have all permissions)
     const isCreator = await isClinicCreator(userId, clinicId);
-    
+
     // 2. Check if user has permission to edit clinic
     const canEditClinic = await hasPermission(userId, clinicId, 'edit_clinic');
     console.log("isCreator", isCreator);
     console.log("canEditClinic", canEditClinic);
-    
+
     if (!isCreator && !canEditClinic) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to update clinic email' 
+      return res.status(403).json({
+        error: 'You do not have permission to update clinic email'
       });
     }
 
@@ -161,7 +162,7 @@ export const updateClinicEmail = async (req, res) => {
       .eq('id', clinicId)
       .select()
       .maybeSingle();
-      
+
     if (error) {
       console.error('Update error:', error);
       return res.status(500).json({ error: 'Failed to update clinic' });
@@ -179,7 +180,7 @@ export const updateClinicEmail = async (req, res) => {
 export const updateClinicPhone = async (req, res) => {
   const { clinicId, phone } = req.body;
   const userId = req.user?.id;
-  
+
   if (!phone) {
     return res.status(400).json({ error: 'Phone number is required' });
   }
@@ -191,13 +192,13 @@ export const updateClinicPhone = async (req, res) => {
   try {
     // 1. Check if user is clinic creator (creators have all permissions)
     const isCreator = await isClinicCreator(userId, clinicId);
-    
+
     // 2. Check if user has permission to edit clinic
     const canEditClinic = await hasPermission(userId, clinicId, 'edit_clinic');
-    
+
     if (!isCreator && !canEditClinic) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to update clinic phone' 
+      return res.status(403).json({
+        error: 'You do not have permission to update clinic phone'
       });
     }
 
@@ -207,7 +208,7 @@ export const updateClinicPhone = async (req, res) => {
       .eq('id', clinicId)
       .select()
       .maybeSingle();
-      
+
     if (error) {
       console.error('Update error:', error);
       return res.status(500).json({ error: 'Failed to update clinic' });
@@ -235,7 +236,7 @@ export const updateClinicInfo = async (req, res) => {
     website
   } = req.body;
   const userId = req.user?.id;
-  
+
   if (!clinicId) {
     return res.status(400).json({ error: 'Clinic ID is required' });
   }
@@ -243,13 +244,13 @@ export const updateClinicInfo = async (req, res) => {
   try {
     // 1. Check if user is clinic creator (creators have all permissions)
     const isCreator = await isClinicCreator(userId, clinicId);
-    
+
     // 2. Check if user has permission to edit clinic
     const canEditClinic = await hasPermission(userId, clinicId, 'edit_clinic');
-    
+
     if (!isCreator && !canEditClinic) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to update clinic information' 
+      return res.status(403).json({
+        error: 'You do not have permission to update clinic information'
       });
     }
 
@@ -313,7 +314,7 @@ export const changeClinicLogo = async (req, res) => {
       .from('clinics')
       .select('created_by')
       .eq('id', clinicId)
-      .single();
+      .maybeSingle();
 
     if (clinicError) {
       console.error('Clinic check error:', clinicError);
@@ -324,8 +325,8 @@ export const changeClinicLogo = async (req, res) => {
     const hasAdminRole = userAccess && (userAccess.role === 'admin' || userAccess.role === 'owner');
 
     if (!isCreator && !hasAdminRole) {
-      return res.status(403).json({ 
-        error: 'Only clinic creators, administrators, and owners can change clinic logo' 
+      return res.status(403).json({
+        error: 'Only clinic creators, administrators, and owners can change clinic logo'
       });
     }
 
@@ -442,7 +443,7 @@ export const changeStampClinic = async (req, res) => {
       .from('clinics')
       .select('created_by')
       .eq('id', clinicId)
-      .single();
+      .maybeSingle();
 
     if (clinicError) {
       console.error('Clinic check error:', clinicError);
@@ -453,8 +454,8 @@ export const changeStampClinic = async (req, res) => {
     const hasAdminRole = userAccess && (userAccess.role === 'admin' || userAccess.role === 'owner');
 
     if (!isCreator && !hasAdminRole) {
-      return res.status(403).json({ 
-        error: 'Only clinic creators, administrators, and owners can change clinic stamp' 
+      return res.status(403).json({
+        error: 'Only clinic creators, administrators, and owners can change clinic stamp'
       });
     }
 
@@ -550,14 +551,14 @@ export const getClinicMembers = async (req, res) => {
   try {
     // 1. Check if user is clinic creator (creators have all permissions)
     const isCreator = await isClinicCreator(userId, clinicId);
-    
+
     // 2. Check if user has permission to view all users
     const canViewAllUsers = await hasPermission(userId, clinicId, 'view_all_users');
     console.log("canViewAllUsers", canViewAllUsers);
     console.log("isCreator", isCreator);
     if (!isCreator && !canViewAllUsers) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to view members for this clinic' 
+      return res.status(403).json({
+        error: 'You do not have permission to view members for this clinic'
       });
     }
 
@@ -632,13 +633,13 @@ export const getClinicInvitationMembers = async (req, res) => {
   try {
     // 1. Check if user is clinic creator (creators have all permissions)
     const isCreator = await isClinicCreator(userId, clinicId);
-    
+
     // 2. Check if user has permission to view all invitations
     const canViewAllInvitations = await hasPermission(userId, clinicId, 'view_all_invitation');
-    
+
     if (!isCreator && !canViewAllInvitations) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to view invitations for this clinic' 
+      return res.status(403).json({
+        error: 'You do not have permission to view invitations for this clinic'
       });
     }
 
@@ -697,13 +698,13 @@ export const deleteClinicInvitation = async (req, res) => {
   try {
     // 1. Check if user is clinic creator (creators have all permissions)
     const isCreator = await isClinicCreator(userId, clinicId);
-    
+
     // 2. Check if user has permission to delete invitations
     const canDeleteInvitation = await hasPermission(userId, clinicId, 'delete_invitation');
-    
+
     if (!isCreator && !canDeleteInvitation) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to delete invitations from this clinic' 
+      return res.status(403).json({
+        error: 'You do not have permission to delete invitations from this clinic'
       });
     }
 
@@ -726,8 +727,8 @@ export const deleteClinicInvitation = async (req, res) => {
 
     // 4. Check if the invitation is still pending (not accepted/rejected)
     if (invitation.status !== 'invited') {
-      return res.status(400).json({ 
-        error: 'Cannot delete invitation that has already been processed (accepted/rejected)' 
+      return res.status(400).json({
+        error: 'Cannot delete invitation that has already been processed (accepted/rejected)'
       });
     }
 
@@ -748,7 +749,7 @@ export const deleteClinicInvitation = async (req, res) => {
       .from('clinics')
       .select('clinic_name')
       .eq('id', clinicId)
-      .single();
+      .maybeSingle();
 
     res.json({
       message: 'Invitation deleted successfully',
@@ -793,28 +794,28 @@ export const inviteClinicMember = async (req, res) => {
   try {
     // 1. Check if user is clinic creator (creators have all permissions)
     const isCreator = await isClinicCreator(userId, clinicId);
-    
+
     // 2. Check if user has permission to add members
     const canAddMember = await hasPermission(userId, clinicId, 'add_member');
-    
+
     // 3. Check if user has permission to add admin members (for full_access and clinic_access roles)
     const canAddAdminMember = await hasPermission(userId, clinicId, 'add_admin_member');
-    
+
     console.log("canAddMember", canAddMember);
     console.log("canAddAdminMember", canAddAdminMember);
     console.log("isCreator", isCreator);
-    
+
     // Check basic permission to invite members
     if (!isCreator && !canAddMember) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to invite members to this clinic' 
+      return res.status(403).json({
+        error: 'You do not have permission to invite members to this clinic'
       });
     }
-    
+
     // Check permission for admin-level roles (full_access, clinic_access)
     if ((role === 'full_access' || role === 'clinic_access') && !isCreator && !canAddAdminMember) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to invite admin-level' 
+      return res.status(403).json({
+        error: 'You do not have permission to invite admin-level'
       });
     }
 
@@ -876,7 +877,7 @@ export const inviteClinicMember = async (req, res) => {
         invitedBy: userId,
         type: 'clinic_invitation'
       },
-      process.env.JWT_SECRET||"43513e03963af80a1bd1dc5a27a8ddca",
+      process.env.JWT_SECRET || "43513e03963af80a1bd1dc5a27a8ddca",
       { expiresIn: '7d' }
     );
 
@@ -894,7 +895,7 @@ export const inviteClinicMember = async (req, res) => {
         }
       ])
       .select()
-      .single();
+      .maybeSingle();
 
     if (invitationError) {
       console.error('Invitation creation error:', invitationError);
@@ -904,9 +905,9 @@ export const inviteClinicMember = async (req, res) => {
     // 6. Get clinic details for email
     const { data: clinic, error: clinicError } = await supabaseUser
       .from('clinics')
-      .select('clinic_name')
+      .select('*')
       .eq('id', clinicId)
-      .single();
+      .maybeSingle();
 
     if (clinicError) {
       console.error('Clinic fetch error:', clinicError);
@@ -921,11 +922,13 @@ export const inviteClinicMember = async (req, res) => {
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
-        },
+        }, tls: {
+          rejectUnauthorized: false // يخلي الاتصال يتجاوز self-signed error
+        }
       });
 
       // Create invitation link
-      const invitationLink = `${0|| 'http://localhost:3000'}/accept-invitation?token=${invitationToken}`;
+      const invitationLink = `${0 || 'http://localhost:3000'}/accept-invitation?token=${invitationToken}`;
 
       // Email content
       const emailHtml = `
@@ -981,6 +984,21 @@ export const inviteClinicMember = async (req, res) => {
       // Don't fail the request if email fails, just log it
     }
 
+    await addNotification({
+      user_id: existingUser.user_id,
+      title: "invitaion",
+      message: "gsggsggsg",
+      type: "invitation",
+      token: invitationToken,
+      meta_data: {
+        clinic_name: clinic.clinic_name,
+        logo_url: clinic.logo_url,
+        role: role
+
+      }
+      // ✅ شلنا io - الآن يعتمد 100% على Supabase Realtime
+    })
+    console.log(clinic.logo_url, "*************clinic.logo_url*************")
     res.json({
       message: 'Invitation sent successfully',
       invitation: {
@@ -1013,7 +1031,7 @@ export const validateInvitation = async (req, res) => {
   try {
     // 1. Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "43513e03963af80a1bd1dc5a27a8ddca");
-    
+
     if (decoded.type !== 'clinic_invitation') {
       return res.status(400).json({ error: 'Invalid invitation token' });
     }
@@ -1048,7 +1066,7 @@ export const validateInvitation = async (req, res) => {
     // 3. Check if invitation has expired
     const now = new Date();
     const expiresAt = new Date(invitation.expires_at);
-    
+
     if (now > expiresAt) {
       return res.status(400).json({ error: 'Invitation has expired' });
     }
@@ -1102,9 +1120,9 @@ export const validateInvitation = async (req, res) => {
 
 export const acceptInvitation = async (req, res) => {
   console.log("acceptInvitation");
-  const { token } = req.body;
+  const { token, NotificationId } = req.body;
   const userId = req.user?.id;
-  console.log("token", req.body);
+  console.log("token NotificationId ", NotificationId, req.body);
 
   if (!token) {
     return res.status(400).json({ error: 'Token is required' });
@@ -1117,7 +1135,7 @@ export const acceptInvitation = async (req, res) => {
   try {
     // 1. Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "43513e03963af80a1bd1dc5a27a8ddca");
-    
+
     if (decoded.type !== 'clinic_invitation') {
       return res.status(400).json({ error: 'Invalid invitation token' });
     }
@@ -1149,7 +1167,7 @@ export const acceptInvitation = async (req, res) => {
     // 3. Check if invitation has expired
     const now = new Date();
     const expiresAt = new Date(invitation.expires_at);
-    
+
     if (now > expiresAt) {
       return res.status(400).json({ error: 'Invitation has expired' });
     }
@@ -1205,6 +1223,11 @@ export const acceptInvitation = async (req, res) => {
       return res.status(500).json({ error: 'Failed to update invitation status' });
     }
 
+    // 8. Update notification status if NotificationId is provided
+    if (NotificationId) {
+      await updateNotificationStatus(NotificationId, 'accepted');
+    }
+
     res.json({
       message: 'Invitation accepted successfully',
       user: {
@@ -1230,7 +1253,7 @@ export const acceptInvitation = async (req, res) => {
 };
 
 export const rejectInvitation = async (req, res) => {
-  const { token } = req.body;
+  const { token, NotificationId } = req.body;
   const userId = req.user?.id;
 
   if (!token) {
@@ -1244,7 +1267,7 @@ export const rejectInvitation = async (req, res) => {
   try {
     // 1. Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "43513e03963af80a1bd1dc5a27a8ddca");
-    
+
     if (decoded.type !== 'clinic_invitation') {
       return res.status(400).json({ error: 'Invalid invitation token' });
     }
@@ -1276,7 +1299,7 @@ export const rejectInvitation = async (req, res) => {
     // 3. Check if invitation has expired
     const now = new Date();
     const expiresAt = new Date(invitation.expires_at);
-    
+
     if (now > expiresAt) {
       return res.status(400).json({ error: 'Invitation has expired' });
     }
@@ -1313,6 +1336,13 @@ export const rejectInvitation = async (req, res) => {
       return res.status(500).json({ error: 'Failed to update invitation status' });
     }
 
+    // 6. Update notification status if NotificationId is provided
+    if (NotificationId) {
+      await updateNotificationStatus(NotificationId, 'rejected');
+    }
+
+
+
     res.json({
       message: 'Invitation rejected successfully',
       invitation: {
@@ -1345,13 +1375,13 @@ export const deleteClinicMember = async (req, res) => {
   try {
     // 1. Check if user is clinic creator (creators have all permissions)
     const isCreator = await isClinicCreator(userId, clinicId);
-    
+
     // 2. Check if user has permission to delete members
     const canDeleteMember = await hasPermission(userId, clinicId, 'delete_member');
-    
+
     if (!isCreator && !canDeleteMember) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to delete members from this clinic' 
+      return res.status(403).json({
+        error: 'You do not have permission to delete members from this clinic'
       });
     }
 
@@ -1377,7 +1407,7 @@ export const deleteClinicMember = async (req, res) => {
       .from('clinics')
       .select('created_by')
       .eq('id', clinicId)
-      .single();
+      .maybeSingle();
 
     if (clinicError) {
       console.error('Clinic check error:', clinicError);
@@ -1385,15 +1415,15 @@ export const deleteClinicMember = async (req, res) => {
     }
 
     if (clinic.created_by === memberId) {
-      return res.status(400).json({ 
-        error: 'Cannot delete the clinic creator. Please transfer ownership first.' 
+      return res.status(400).json({
+        error: 'Cannot delete the clinic creator. Please transfer ownership first.'
       });
     }
 
     // 5. Prevent users from deleting themselves (they should use leaveClinic instead)
     if (userId === memberId) {
-      return res.status(400).json({ 
-        error: 'You cannot delete yourself. Please use the leave clinic function instead.' 
+      return res.status(400).json({
+        error: 'You cannot delete yourself. Please use the leave clinic function instead.'
       });
     }
 
@@ -1412,14 +1442,14 @@ export const deleteClinicMember = async (req, res) => {
 
     // Define role hierarchy (higher index = higher role)
     const roleHierarchy = ['assistant_access', 'limited_access', 'clinic_access', 'full_access'];
-    
+
     const currentUserRoleIndex = roleHierarchy.indexOf(currentUserRole?.role || 'assistant_access');
     const memberRoleIndex = roleHierarchy.indexOf(memberToDelete.role || 'assistant_access');
-    
+
     // Only allow deletion if current user has higher or equal role
     if (currentUserRoleIndex < memberRoleIndex) {
-      return res.status(403).json({ 
-        error: 'You can only delete members with equal or lower role than yours' 
+      return res.status(403).json({
+        error: 'You can only delete members with equal or lower role than yours'
       });
     }
 
@@ -1447,7 +1477,7 @@ export const deleteClinicMember = async (req, res) => {
       .from('clinics')
       .select('clinic_name')
       .eq('id', clinicId)
-      .single();
+      .maybeSingle();
 
     res.json({
       message: 'Member deleted successfully from clinic',
@@ -1471,11 +1501,27 @@ export const deleteClinicMember = async (req, res) => {
 };
 
 export const leaveClinic = async (req, res) => {
-  const { clinicId } = req.body;
+  const { clinicId, action, newOwnerId } = req.body;
   const userId = req.user?.id;
+
+  console.log('leaveClinic----------------', { clinicId, action, newOwnerId, userId });
 
   if (!clinicId) {
     return res.status(400).json({ error: 'Clinic ID is required' });
+  }
+
+  // Validate action if provided
+  if (action && !['delete', 'transfer'].includes(action)) {
+    return res.status(400).json({
+      error: 'Invalid action. Valid actions are: delete, transfer'
+    });
+  }
+
+  // Validate newOwnerId if action is transfer
+  if (action === 'transfer' && !newOwnerId) {
+    return res.status(400).json({
+      error: 'newOwnerId is required when action is transfer'
+    });
   }
 
   try {
@@ -1496,26 +1542,137 @@ export const leaveClinic = async (req, res) => {
       return res.status(404).json({ error: 'You are not a member of this clinic' });
     }
 
-    // 2. Check if user is the clinic creator (admin)
+    // 2. Check if user is the clinic creator (owner)
     const { data: clinic, error: clinicError } = await supabaseUser
       .from('clinics')
-      .select('created_by')
+      .select('id, created_by, clinic_name')
       .eq('id', clinicId)
-      .single();
+      .maybeSingle();
 
     if (clinicError) {
       console.error('Clinic check error:', clinicError);
       return res.status(500).json({ error: 'Database error' });
     }
 
-    // Prevent clinic creator from leaving (they should delete the clinic instead)
-    if (clinic.created_by === userId) {
-      return res.status(400).json({ 
-        error: 'You cannot leave this clinic because you are the creator. Please delete the clinic instead.' 
-      });
+    const isOwner = clinic.created_by === userId;
+
+    // 3. Handle owner leaving
+    if (isOwner) {
+      if (!action) {
+        // No action specified - return error with options
+        return res.status(400).json({
+          error: 'As the clinic owner, you must specify an action when leaving.',
+          options: {
+            delete: 'Set action=delete to delete the clinic',
+            transfer: 'Set action=transfer and provide newOwnerId to transfer ownership'
+          }
+        });
+      }
+
+      if (action === 'delete') {
+        // Delete the clinic
+        const { error: deleteClinicError } = await supabaseUser
+          .from('clinics')
+          .delete()
+          .eq('id', clinicId)
+          .eq('created_by', userId);
+
+        if (deleteClinicError) {
+          console.error('Delete clinic error:', deleteClinicError);
+          return res.status(500).json({ error: 'Failed to delete clinic' });
+        }
+
+        console.log(`Clinic ${clinicId} deleted by owner ${userId}`);
+
+        return res.json({
+          message: 'Clinic deleted successfully',
+          clinic: {
+            id: clinicId,
+            name: clinic.clinic_name
+          }
+        });
+      }
+
+      if (action === 'transfer') {
+        // Verify the new owner is a member of the clinic
+        const { data: newOwnerMembership, error: newOwnerError } = await supabaseUser
+          .from('user_clinic_roles')
+          .select('id, user_id, role, status')
+          .eq('clinic_id', clinicId)
+          .eq('user_id', newOwnerId)
+          .maybeSingle();
+
+        if (newOwnerError) {
+          console.error('New owner check error:', newOwnerError);
+          return res.status(500).json({ error: 'Database error' });
+        }
+
+        if (!newOwnerMembership) {
+          return res.status(404).json({
+            error: 'New owner is not a member of this clinic'
+          });
+        }
+
+
+        // Transfer ownership
+        const { error: transferError } = await supabaseUser
+          .from('clinics')
+          .update({ created_by: newOwnerId })
+          .eq('id', clinicId)
+          .eq('created_by', userId);
+
+        if (transferError) {
+          console.error('Transfer error:', transferError);
+          return res.status(500).json({ error: 'Failed to transfer ownership' });
+        }
+
+        // Update new owner's role to full_access if needed
+        if (newOwnerMembership.role !== 'admin' && newOwnerMembership.role !== 'full_access') {
+          await supabaseUser
+            .from('user_clinic_roles')
+            .update({ role: 'full_access' })
+            .eq('clinic_id', clinicId)
+            .eq('user_id', newOwnerId);
+        }
+
+        // Remove old owner from members
+        const { error: removeError } = await supabaseUser
+          .from('user_clinic_roles')
+          .delete()
+          .eq('clinic_id', clinicId)
+          .eq('user_id', userId);
+
+        if (removeError) {
+          console.error('Remove old owner error:', removeError);
+          return res.status(500).json({ error: 'Failed to remove from clinic' });
+        }
+
+        // Get new owner details
+        const { data: newOwnerDetails } = await supabaseUser
+          .from('user')
+          .select('firstName, lastName, email')
+          .eq('user_id', newOwnerId)
+          .maybeSingle();
+
+        console.log(`Ownership transferred from ${userId} to ${newOwnerId} for clinic ${clinicId}`);
+
+        return res.json({
+          message: 'Ownership transferred and you left the clinic successfully',
+          clinic: {
+            id: clinicId,
+            name: clinic.clinic_name
+          },
+          newOwner: {
+            id: newOwnerId,
+            firstName: newOwnerDetails?.firstName,
+            lastName: newOwnerDetails?.lastName,
+            email: newOwnerDetails?.email
+          }
+        });
+      }
     }
 
-    // 3. Delete user from clinic
+    // 4. Non-owner leaving - standard flow
     const { error: deleteError } = await supabaseUser
       .from('user_clinic_roles')
       .delete()
@@ -1527,23 +1684,13 @@ export const leaveClinic = async (req, res) => {
       return res.status(500).json({ error: 'Failed to leave clinic' });
     }
 
-    // 4. Get clinic name for response
-    const { data: clinicInfo, error: clinicInfoError } = await supabaseUser
-      .from('clinics')
-      .select('clinic_name')
-      .eq('id', clinicId)
-      .single();
-
-    if (clinicInfoError) {
-      console.error('Clinic info error:', clinicInfoError);
-      // Don't fail the request, just log it
-    }
+    console.log(`User ${userId} left clinic ${clinicId}`);
 
     res.json({
       message: 'Successfully left the clinic',
       clinic: {
         id: clinicId,
-        name: clinicInfo?.clinic_name || 'Unknown Clinic',
+        name: clinic.clinic_name,
         role: userMembership.role
       }
     });
@@ -1557,7 +1704,7 @@ export const leaveClinic = async (req, res) => {
 export const changeMemberRole = async (req, res) => {
   const { clinicId, memberId, newRole } = req.body;
   const userId = req.user?.id;
-  console.log("changeMemberRole----------------", memberId, newRole,req.body);
+  console.log("changeMemberRole----------------", memberId, newRole, req.body);
 
   if (!clinicId || !memberId || !newRole) {
     return res.status(400).json({ error: 'Clinic ID, member ID, and new role are required' });
@@ -1572,13 +1719,13 @@ export const changeMemberRole = async (req, res) => {
   try {
     // 1. Check if user is clinic creator (creators have all permissions)
     const isCreator = await isClinicCreator(userId, clinicId);
-    
+
     // 2. Check if user has permission to change roles
     const canChangeRole = await hasPermission(userId, clinicId, 'change_role');
-    
+
     if (!isCreator && !canChangeRole) {
-      return res.status(403).json({ 
-        error: 'You do not have permission to change member roles in this clinic' 
+      return res.status(403).json({
+        error: 'You do not have permission to change member roles in this clinic'
       });
     }
 
@@ -1604,7 +1751,7 @@ export const changeMemberRole = async (req, res) => {
       .from('clinics')
       .select('created_by')
       .eq('id', clinicId)
-      .single();
+      .maybeSingle();
 
     if (clinicError) {
       console.error('Clinic check error:', clinicError);
@@ -1612,15 +1759,15 @@ export const changeMemberRole = async (req, res) => {
     }
 
     if (clinic.created_by === memberId) {
-      return res.status(400).json({ 
-        error: 'Cannot change the clinic creator\'s role. Please transfer ownership first.' 
+      return res.status(400).json({
+        error: 'Cannot change the clinic creator\'s role. Please transfer ownership first.'
       });
     }
 
     // 5. Prevent users from changing their own role
     if (userId === memberId) {
-      return res.status(400).json({ 
-        error: 'You cannot change your own role. Please ask another administrator.' 
+      return res.status(400).json({
+        error: 'You cannot change your own role. Please ask another administrator.'
       });
     }
 
@@ -1639,14 +1786,14 @@ export const changeMemberRole = async (req, res) => {
 
     // Define role hierarchy (higher index = higher role)
     const roleHierarchy = ['assistant_access', 'limited_access', 'clinic_access', 'full_access'];
-    
+
     const currentUserRoleIndex = roleHierarchy.indexOf(currentUserRole?.role || 'assistant_access');
     const memberRoleIndex = roleHierarchy.indexOf(memberToChange.role || 'assistant_access');
-    
+
     // Only allow role change if current user has higher role
     if (currentUserRoleIndex <= memberRoleIndex) {
-      return res.status(403).json({ 
-        error: 'You can only change roles of members with lower role than yours' 
+      return res.status(403).json({
+        error: 'You can only change roles of members with lower role than yours'
       });
     }
 
@@ -1664,7 +1811,7 @@ export const changeMemberRole = async (req, res) => {
       .eq('clinic_id', clinicId)
       .eq('user_id', memberId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (updateError) {
       console.error('Update role error:', updateError);
@@ -1676,7 +1823,7 @@ export const changeMemberRole = async (req, res) => {
       .from('clinics')
       .select('clinic_name')
       .eq('id', clinicId)
-      .single();
+      .maybeSingle();
 
     res.json({
       message: 'Member role updated successfully',
@@ -1691,6 +1838,126 @@ export const changeMemberRole = async (req, res) => {
       clinic: {
         id: clinicId,
         name: clinicInfo?.clinic_name || 'Unknown Clinic'
+      }
+    });
+
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Transfer clinic ownership to another member
+export const transferClinicOwnership = async (req, res) => {
+  const { clinicId, newOwnerId } = req.body;
+  const userId = req.user?.id;
+
+  console.log('transferClinicOwnership----------------', { clinicId, newOwnerId, userId });
+
+  if (!clinicId || !newOwnerId) {
+    return res.status(400).json({ error: 'Clinic ID and new owner ID are required' });
+  }
+
+  if (userId === newOwnerId) {
+    return res.status(400).json({ error: 'You are already the owner of this clinic' });
+  }
+
+  try {
+    // 1. Verify current user is the clinic owner (created_by)
+    const { data: clinic, error: clinicError } = await supabaseUser
+      .from('clinics')
+      .select('id, created_by, clinic_name')
+      .eq('id', clinicId)
+      .maybeSingle();
+
+    if (clinicError) {
+      console.error('Clinic check error:', clinicError);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    if (!clinic) {
+      return res.status(404).json({ error: 'Clinic not found' });
+    }
+
+    if (clinic.created_by !== userId) {
+      return res.status(403).json({
+        error: 'Only the clinic owner can transfer ownership'
+      });
+    }
+
+    // 2. Verify the new owner is a member of the clinic
+    const { data: newOwnerMembership, error: membershipError } = await supabaseUser
+      .from('user_clinic_roles')
+      .select('id, user_id, role, status')
+      .eq('clinic_id', clinicId)
+      .eq('user_id', newOwnerId)
+      .maybeSingle();
+
+    if (membershipError) {
+      console.error('Membership check error:', membershipError);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    if (!newOwnerMembership) {
+      return res.status(404).json({
+        error: 'New owner is not a member of this clinic'
+      });
+    }
+
+    if (newOwnerMembership.status !== 'active') {
+      return res.status(400).json({
+        error: 'New owner must have an active membership in the clinic'
+      });
+    }
+
+    // 3. Get new owner details for response
+    const { data: newOwnerDetails, error: ownerDetailsError } = await supabaseUser
+      .from('user')
+      .select('firstName, lastName, email')
+      .eq('user_id', newOwnerId)
+      .maybeSingle();
+
+    if (ownerDetailsError) {
+      console.error('Owner details error:', ownerDetailsError);
+    }
+
+    // 4. Transfer ownership by updating created_by field
+    const { error: transferError } = await supabaseUser
+      .from('clinics')
+      .update({ created_by: newOwnerId })
+      .eq('id', clinicId)
+      .eq('created_by', userId); // Double check current user is still owner
+
+    if (transferError) {
+      console.error('Transfer error:', transferError);
+      return res.status(500).json({ error: 'Failed to transfer ownership' });
+    }
+
+    // 5. Update the new owner's role to admin if not already (optional but recommended)
+    if (newOwnerMembership.role !== 'admin' && newOwnerMembership.role !== 'full_access') {
+      await supabaseUser
+        .from('user_clinic_roles')
+        .update({ role: 'full_access' })
+        .eq('clinic_id', clinicId)
+        .eq('user_id', newOwnerId);
+    }
+
+    console.log(`Ownership transferred successfully from ${userId} to ${newOwnerId} for clinic ${clinicId}`);
+
+    res.json({
+      message: 'Clinic ownership transferred successfully',
+      clinic: {
+        id: clinicId,
+        name: clinic.clinic_name
+      },
+      newOwner: {
+        id: newOwnerId,
+        firstName: newOwnerDetails?.firstName,
+        lastName: newOwnerDetails?.lastName,
+        email: newOwnerDetails?.email
+      },
+      previousOwner: {
+        id: userId
       }
     });
 
