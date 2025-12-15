@@ -1,4 +1,4 @@
-import { supabaseUser,supabaseAdmin } from '../supabaseClient.js';
+import { supabaseUser, supabaseAdmin } from '../supabaseClient.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -21,7 +21,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    
+
     // Handle .nii.gz files specially
     if (file.originalname.toLowerCase().endsWith('.nii.gz')) {
       cb(null, file.fieldname + '-' + uniqueSuffix + '.nii.gz');
@@ -31,7 +31,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: {
     fileSize: 700 * 1024 * 1024 // 700MB limit
@@ -39,18 +39,18 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     console.log('File filter checking:', file.originalname);
     console.log('File mimetype:', file.mimetype);
-    
+
     // Allow medical imaging formats and common document formats
     const allowedTypes = /dcm|dicom|nii|gz|png|jpg|jpeg|tiff|tif|pdf|doc|docx|xls|xlsx|txt|csv/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    
+
     // For .nii.gz files, check if the filename ends with .nii.gz
     const isNiiGz = file.originalname.toLowerCase().endsWith('.nii.gz');
-    
+
     console.log('File extension:', path.extname(file.originalname).toLowerCase());
     console.log('Extname test result:', extname);
     console.log('Is NII.GZ:', isNiiGz);
-    
+
     if (extname || isNiiGz) {
       console.log('File accepted:', file.originalname);
       return cb(null, true);
@@ -66,26 +66,26 @@ const callFlaskUploadAPI = async (filePath, clinicId, patientId, reportType, rep
   try {
     console.log('🔄 Calling Flask API for medical file processing...');
     console.log('📋 Parameters:', { clinicId, patientId, reportType, reportId });
-    
+
     // Create FormData for multipart/form-data request
     const formData = new FormData();
-    
+
     // Add the file
     const fileStream = fs.createReadStream(filePath);
     formData.append('file', fileStream, {
       filename: path.basename(filePath),
       contentType: 'application/octet-stream'
     });
-    
+
     // Add required parameters
     formData.append('clinic_id', clinicId);
     formData.append('patient_id', patientId);
     formData.append('report_type', reportType.toLowerCase());
     formData.append('report_id', reportId);
-    
+
     // Determine which Flask endpoint to use based on report type
     const flaskEndpoint = reportType.toLowerCase() === 'pano' ? pano_report_generated : cbct_report_generated;
-    
+
     // Make request to Flask API
     const response = await fetch(flaskEndpoint, {
       method: 'POST',
@@ -95,13 +95,13 @@ const callFlaskUploadAPI = async (filePath, clinicId, patientId, reportType, rep
       },
       timeout: 600000 // 10 minutes timeout for large files
     });
-    
+
     const responseData = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(`Flask API error: ${responseData.error || response.statusText}`);
     }
-    
+
     console.log('✅ Flask API call successful:', responseData);
     return {
       success: true,
@@ -109,7 +109,7 @@ const callFlaskUploadAPI = async (filePath, clinicId, patientId, reportType, rep
       flask_processing: responseData.processing_result,
       supabase_upload: responseData.supabase_info
     };
-    
+
   } catch (error) {
     console.error('❌ Flask API call failed:', error);
     return {
@@ -124,7 +124,7 @@ const callFlaskUploadAPI = async (filePath, clinicId, patientId, reportType, rep
 const updateReportWithFlaskResults = async (reportId, flaskResults) => {
   try {
     let updateData = {};
-    
+
     if (flaskResults.success) {
       updateData.status = 'completed';
       updateData.processing_info = {
@@ -141,18 +141,18 @@ const updateReportWithFlaskResults = async (reportId, flaskResults) => {
         failed_at: new Date().toISOString()
       };
     }
-    
+
     const { error } = await supabaseUser
       .from('report_ai')
       .update(updateData)
       .eq('report_id', reportId);
-    
+
     if (error) {
       console.error('❌ Failed to update report with Flask results:', error);
     } else {
       console.log('✅ Report updated with Flask results');
     }
-    
+
   } catch (error) {
     console.error('❌ Error updating report:', error);
   }
@@ -161,7 +161,7 @@ const updateReportWithFlaskResults = async (reportId, flaskResults) => {
 // ✅ Create AI Report with File Upload and Flask Integration
 export const createReport = async (req, res) => {
   console.log('Creating report...');
-  
+
   upload.single('file')(req, res, async (err) => {
     if (err) {
       console.error('File upload error:', err);
@@ -170,7 +170,7 @@ export const createReport = async (req, res) => {
         field: err.field,
         message: err.message
       });
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: err.message,
         status: 'error',
@@ -181,28 +181,28 @@ export const createReport = async (req, res) => {
       });
     }
 
-    const { 
-      patient_id, 
-      report_type, 
+    const {
+      patient_id,
+      report_type,
       status = 'pending'
     } = req.body;
-    
+
     console.log('Report data:', req.body);
     console.log('Uploaded file:', req.file);
-    
+
     const userId = req.user?.id;
     console.log('User ID:', userId);
-    
+
     if (!patient_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Patient ID is required',
         status: 'error'
       });
     }
-    
+
     if (!report_type) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Report type is required',
         status: 'error'
@@ -216,10 +216,10 @@ export const createReport = async (req, res) => {
         .select('clinic_id')
         .eq('id', patient_id)
         .single();
-        
+
       if (patientError) {
         console.error('Patient fetch error:', patientError);
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
           error: 'Patient not found',
           status: 'error'
@@ -235,10 +235,10 @@ export const createReport = async (req, res) => {
         .eq('user_id', userId)
         .eq('clinic_id', clinicId)
         .maybeSingle();
-        
+
       if (membershipError) {
         console.error('Membership check error:', membershipError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           success: false,
           error: 'Database error',
           status: 'error'
@@ -246,7 +246,7 @@ export const createReport = async (req, res) => {
       }
 
       if (!userMembership) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           success: false,
           error: 'You must be a member of this clinic to create reports',
           status: 'error'
@@ -266,7 +266,7 @@ export const createReport = async (req, res) => {
 
       if (reportError) {
         console.error('Report creation error:', reportError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           success: false,
           error: 'Failed to create report',
           status: 'error'
@@ -274,7 +274,7 @@ export const createReport = async (req, res) => {
       }
 
       console.log('Report created successfully:', report);
-      
+
       // 4. Get patient details for response
       const { data: patientDetails, error: patientDetailsError } = await supabaseUser
         .from('patients')
@@ -321,7 +321,7 @@ export const createReport = async (req, res) => {
       // 6. Process file in background using Flask API if file was uploaded
       if (req.file && isMedicalImagingFile(req.file.originalname)) {
         console.log('🚀 Starting background processing with Flask API...');
-        
+
         // Call Flask API asynchronously
         setImmediate(async () => {
           try {
@@ -332,19 +332,19 @@ export const createReport = async (req, res) => {
               report_type,
               report.report_id
             );
-            
+
             // Update report with Flask results
             await updateReportWithFlaskResults(report.report_id, flaskResults);
-            
+
             // Clean up local file after processing
             if (fs.existsSync(req.file.path)) {
               fs.unlinkSync(req.file.path);
               console.log('🗑️ Local file cleaned up:', req.file.path);
             }
-            
+
           } catch (error) {
             console.error('❌ Background processing failed:', error);
-            
+
             // Update report status to failed
             await updateReportWithFlaskResults(report.report_id, {
               success: false,
@@ -383,7 +383,7 @@ export const createReport = async (req, res) => {
 
     } catch (err) {
       console.error('Unexpected error:', err);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         error: err.message,
         status: 'error'
@@ -406,7 +406,7 @@ export const getFlaskApiStatus = async (req, res) => {
       method: 'GET',
       timeout: 5000
     });
-    
+
     if (response.ok) {
       const data = await response.json();
       res.json({
@@ -435,9 +435,9 @@ export const clearFlaskCache = async (req, res) => {
       method: 'POST',
       timeout: 10000
     });
-    
+
     const data = await response.json();
-    
+
     if (response.ok) {
       res.json({
         success: true,
@@ -458,39 +458,39 @@ export const clearFlaskCache = async (req, res) => {
 // ✅ Generate Pano Report with Flask API Integration
 export const generatePanoReportWithFlask = async (req, res) => {
   console.log('🔄 Generating Pano Report with Flask API...');
-  
+
   upload.single('file')(req, res, async (err) => {
     if (err) {
       console.error('File upload error:', err);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: err.message,
         status: 'error'
       });
     }
 
-    const { 
-      patient_id, 
+    const {
+      patient_id,
       report_id,
       clinic_id
     } = req.body;
-    
+
     console.log('Pano report data:', req.body);
     console.log('Uploaded file:', req.file);
-    
+
     const userId = req.user?.id;
     console.log('User ID:', userId);
-    
+
     if (!patient_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Patient ID is required',
         status: 'error'
       });
     }
-    
+
     if (!report_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Report ID is required',
         status: 'error'
@@ -498,7 +498,7 @@ export const generatePanoReportWithFlask = async (req, res) => {
     }
 
     if (!clinic_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Clinic ID is required',
         status: 'error'
@@ -506,7 +506,7 @@ export const generatePanoReportWithFlask = async (req, res) => {
     }
 
     if (!req.file) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Image file is required (JPG or PNG)',
         status: 'error'
@@ -516,7 +516,7 @@ export const generatePanoReportWithFlask = async (req, res) => {
     // Check if file is JPG or PNG
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(req.file.mimetype)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Only JPG and PNG image files are allowed',
         status: 'error'
@@ -531,10 +531,10 @@ export const generatePanoReportWithFlask = async (req, res) => {
         .eq('user_id', userId)
         .eq('clinic_id', clinic_id)
         .maybeSingle();
-        
+
       if (membershipError) {
         console.error('Membership check error:', membershipError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           success: false,
           error: 'Database error',
           status: 'error'
@@ -542,7 +542,7 @@ export const generatePanoReportWithFlask = async (req, res) => {
       }
 
       if (!userMembership) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           success: false,
           error: 'You must be a member of this clinic to generate pano reports',
           status: 'error'
@@ -559,7 +559,7 @@ export const generatePanoReportWithFlask = async (req, res) => {
 
       if (reportError || !report) {
         console.error('Report fetch error:', reportError);
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
           error: 'Report not found',
           status: 'error'
@@ -567,7 +567,7 @@ export const generatePanoReportWithFlask = async (req, res) => {
       }
 
       if (report.raport_type !== 'pano') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: 'Report must be of type "pano"',
           status: 'error'
@@ -577,7 +577,7 @@ export const generatePanoReportWithFlask = async (req, res) => {
       // 3. Update report status to processing
       const { error: updateError } = await supabaseUser
         .from('report_ai')
-        .update({ 
+        .update({
           status: 'processing',
           last_upload: new Date().toISOString()
         })
@@ -585,7 +585,7 @@ export const generatePanoReportWithFlask = async (req, res) => {
 
       if (updateError) {
         console.error('Report status update error:', updateError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           success: false,
           error: 'Failed to update report status',
           status: 'error'
@@ -620,7 +620,7 @@ export const generatePanoReportWithFlask = async (req, res) => {
 
       // 5. Process image in background using Flask API
       console.log('🚀 Starting background pano processing with Flask API...');
-      
+
       setImmediate(async () => {
         try {
           const flaskResults = await callFlaskUploadAPI(
@@ -630,19 +630,19 @@ export const generatePanoReportWithFlask = async (req, res) => {
             'pano',
             report_id
           );
-          
+
           // Update report with Flask results
           await updateReportWithFlaskResults(report_id, flaskResults);
-          
+
           // Clean up local file after processing
           if (fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
             console.log('🗑️ Local file cleaned up:', req.file.path);
           }
-          
+
         } catch (error) {
           console.error('❌ Background pano processing failed:', error);
-          
+
           // Update report status to failed
           await updateReportWithFlaskResults(report_id, {
             success: false,
@@ -653,7 +653,7 @@ export const generatePanoReportWithFlask = async (req, res) => {
 
     } catch (err) {
       console.error('Unexpected error:', err);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         error: err.message,
         status: 'error'
@@ -668,7 +668,7 @@ export const deleteReport = async (req, res) => {
   const userId = req.user?.id;
 
   if (!report_id) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
       error: 'Report ID is required',
       status: 'error'
@@ -685,7 +685,7 @@ export const deleteReport = async (req, res) => {
 
     if (reportError) {
       console.error('Report fetch error:', reportError);
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         error: 'Report not found',
         status: 'error'
@@ -701,7 +701,7 @@ export const deleteReport = async (req, res) => {
 
     if (patientError) {
       console.error('Patient fetch error:', patientError);
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         error: 'Patient not found',
         status: 'error'
@@ -720,7 +720,7 @@ export const deleteReport = async (req, res) => {
 
     if (membershipError) {
       console.error('Membership check error:', membershipError);
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
         error: 'Database error',
         status: 'error'
@@ -728,7 +728,7 @@ export const deleteReport = async (req, res) => {
     }
 
     if (!userMembership) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         success: false,
         error: 'You must be a member of this clinic to delete reports',
         status: 'error'
@@ -743,7 +743,7 @@ export const deleteReport = async (req, res) => {
 
     if (deleteError) {
       console.error('Report deletion error:', deleteError);
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
         error: 'Failed to delete report',
         status: 'error'
@@ -765,7 +765,7 @@ export const deleteReport = async (req, res) => {
         const { error: deleteFilesError } = await supabaseAdmin.storage
           .from('reports')
           .remove(filePaths);
-        
+
         if (deleteFilesError) {
           console.error('Storage files deletion error:', deleteFilesError);
         } else {
@@ -799,7 +799,7 @@ export const deleteReport = async (req, res) => {
               const { error: deleteViewFilesError } = await supabaseAdmin.storage
                 .from('slices')
                 .remove(viewFilePaths);
-              
+
               if (deleteViewFilesError) {
                 console.error(`Slice files deletion error for ${view}:`, deleteViewFilesError);
               } else {
@@ -826,13 +826,13 @@ export const deleteReport = async (req, res) => {
 
   } catch (err) {
     console.error('Unexpected error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: err.message,
       status: 'error'
     });
   }
-}; 
+};
 
 // ✅ Update Report Status with WebSocket Notification (keeping original logic)
 export const updateReportStatus = async (req, res) => {
@@ -840,7 +840,7 @@ export const updateReportStatus = async (req, res) => {
   const userId = req.user?.id;
 
   if (!report_id) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
       error: 'Report ID is required',
       status: 'error'
@@ -848,7 +848,7 @@ export const updateReportStatus = async (req, res) => {
   }
 
   if (!new_status) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
       error: 'New status is required',
       status: 'error'
@@ -858,7 +858,7 @@ export const updateReportStatus = async (req, res) => {
   // Validate status values
   const validStatuses = ['pending', 'processing', 'completed', 'failed', 'cancelled'];
   if (!validStatuses.includes(new_status)) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
       error: `Invalid status. Valid statuses are: ${validStatuses.join(', ')}`,
       status: 'error'
@@ -875,7 +875,7 @@ export const updateReportStatus = async (req, res) => {
 
     if (reportError) {
       console.error('Report fetch error:', reportError);
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         error: 'Report not found',
         status: 'error'
@@ -884,7 +884,7 @@ export const updateReportStatus = async (req, res) => {
 
     // Check if status is actually changing
     if (currentReport.status === new_status) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Report status is already set to this value',
         status: 'error'
@@ -900,7 +900,7 @@ export const updateReportStatus = async (req, res) => {
 
     if (patientError) {
       console.error('Patient fetch error:', patientError);
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         error: 'Patient not found',
         status: 'error'
@@ -919,7 +919,7 @@ export const updateReportStatus = async (req, res) => {
 
     if (membershipError) {
       console.error('Membership check error:', membershipError);
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
         error: 'Database error',
         status: 'error'
@@ -927,7 +927,7 @@ export const updateReportStatus = async (req, res) => {
     }
 
     if (!userMembership) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         success: false,
         error: 'You must be a member of this clinic to update reports',
         status: 'error'
@@ -937,7 +937,7 @@ export const updateReportStatus = async (req, res) => {
     // 4. Update the report status
     const { data: updatedReport, error: updateError } = await supabaseUser
       .from('report_ai')
-      .update({ 
+      .update({
         status: new_status,
         last_upload: new Date().toISOString()
       })
@@ -947,7 +947,7 @@ export const updateReportStatus = async (req, res) => {
 
     if (updateError) {
       console.error('Report status update error:', updateError);
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
         error: 'Failed to update report status',
         status: 'error'
@@ -971,7 +971,7 @@ export const updateReportStatus = async (req, res) => {
 
   } catch (err) {
     console.error('Unexpected error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: err.message,
       status: 'error'
@@ -1041,17 +1041,17 @@ export const getReportData = async (req, res) => {
         status: 'error'
       });
     }
-    
+
     // Generate URLs dynamically based on report type and ID (Updated path structure)
     const { report_url, data_url } = generateReportUrls(clinicId, report.patient_id, report.raport_type, report.report_id);
-    
+
     // Add the generated URLs to the report object
     const reportWithUrls = {
       ...report,
       report_url,
       data_url
     };
-    
+
     // إذا كان المستخدم عضو، أرجع بيانات التقرير
     res.json({
       success: true,
@@ -1071,7 +1071,7 @@ export const getReportData = async (req, res) => {
 const fetchJsonFromUrl = async (url) => {
   try {
     console.log('🌐 Fetching JSON from URL:', url);
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -1093,7 +1093,7 @@ const fetchJsonFromUrl = async (url) => {
     const jsonData = await response.json();
     console.log('✅ Successfully fetched JSON data');
     return jsonData;
-    
+
   } catch (error) {
     console.error('💥 Failed to fetch JSON from URL:', error);
     throw new Error(`Failed to fetch data from URL: ${error.message}`);
@@ -1166,9 +1166,9 @@ export const getReportDataPost = async (req, res) => {
 
     // 3️⃣ Generate URLs dynamically (Updated path structure)
     const { report_url, data_url } = generateReportUrls(
-      clinicId, 
-      report.patient_id, 
-      report.raport_type, 
+      clinicId,
+      report.patient_id,
+      report.raport_type,
       report.report_id
     );
 
@@ -1195,15 +1195,15 @@ export const getReportDataPost = async (req, res) => {
         console.log('📥 Attempting to fetch JSON data from report_url...');
         jsonData = await fetchJsonFromUrl(report_url);
         console.log('✅ JSON data fetched successfully');
-        
+
         // Add some metadata about the fetched data
         reportWithUrls._meta.json_fetch_success = true;
         reportWithUrls._meta.json_data_size = JSON.stringify(jsonData).length;
-        
+
       } catch (fetchError) {
         console.warn('⚠️ Failed to fetch JSON data (continuing without it):', fetchError.message);
         jsonError = fetchError.message;
-        
+
         reportWithUrls._meta.json_fetch_success = false;
         reportWithUrls._meta.json_fetch_error = fetchError.message;
       }
@@ -1217,9 +1217,9 @@ export const getReportDataPost = async (req, res) => {
       // Include JSON data if successfully fetched
       ...(jsonData && { report_data: jsonData }),
       // Include error info if JSON fetch failed but continue with basic data
-      ...(jsonError && { 
+      ...(jsonError && {
         json_fetch_warning: `Could not fetch JSON data: ${jsonError}`,
-        json_available_at: report_url 
+        json_available_at: report_url
       })
     };
 
@@ -1289,9 +1289,9 @@ export const getReportDataWithJsonPost = async (req, res) => {
 
     // Generate URLs (Updated path structure)
     const { report_url, data_url } = generateReportUrls(
-      patient.clinic_id, 
-      report.patient_id, 
-      report.raport_type, 
+      patient.clinic_id,
+      report.patient_id,
+      report.raport_type,
       report.report_id
     );
 
@@ -1301,23 +1301,23 @@ export const getReportDataWithJsonPost = async (req, res) => {
       const { data, error } = await supabaseAdmin
         .storage
         .from('reports')
-        .createSignedUrl(`${patient.clinic_id}/${report.patient_id}/pano/${report.report_id}/original.png`, 60 * 1); 
-        // 1 hour
-        console.log('pano_image_url-----------------------------:', data?.signedUrl, error);
+        .createSignedUrl(`${patient.clinic_id}/${report.patient_id}/pano/${report.report_id}/original.png`, 60 * 1);
+      // 1 hour
+      console.log('pano_image_url-----------------------------:', data?.signedUrl, error);
       pano_image_url = data?.signedUrl || null;
     }
 
     // Add signed cbct image URL if type is cbct
     let cbct_image_url = null;
-    console.log(report.raport_type,'report.raport_type')
+    console.log(report.raport_type, 'report.raport_type')
     if (report.raport_type === 'cbct') {
       console.log('CBCT Image URL-----------------------------:', `${patient.clinic_id}/${report.patient_id}/cbct/${report.report_id}/original.png`);
       const { data, error } = await supabaseAdmin
         .storage
         .from('reports')
         .createSignedUrl(`${patient.clinic_id}/${report.patient_id}/cbct/${report.report_id}/original.png`, 60 * 1); // 1 hour
-      
-      console.log("data",data)
+
+      console.log("data", data)
       cbct_image_url = data?.signedUrl || null;
       console.log('CBCT Image URL-----------------------------:', cbct_image_url, error);
     }
@@ -1341,10 +1341,10 @@ export const getReportDataWithJsonPost = async (req, res) => {
         },
 
 
-        
+
         data: jsonData, // Main JSON data
         _meta: {
-          metadata:report.metadata,
+          metadata: report.metadata,
           fetched_at: new Date().toISOString(),
           clinic_id: patient.clinic_id,
           data_source: report_url
@@ -1354,7 +1354,7 @@ export const getReportDataWithJsonPost = async (req, res) => {
     } catch (fetchError) {
       // If JSON fetch fails, return report info with error
       console.error('💥 JSON fetch failed:', fetchError.message);
-      
+
       res.status(206).yreza({ // 206 Partial Content
         success: true,
         status: 'partial_success',
@@ -1368,7 +1368,7 @@ export const getReportDataWithJsonPost = async (req, res) => {
         data: null,
         error: `Could not fetch JSON data: ${fetchError.message}`,
         _meta: {
-          metadata:report.metadata,
+          metadata: report.metadata,
           fetched_at: new Date().toISOString(),
           clinic_id: patient.clinic_id,
           data_source: report_url,
@@ -1391,7 +1391,7 @@ export const getReportDataWithJsonPost = async (req, res) => {
 // 🔧 Utility function for testing URL accessibility
 export const testReportUrl = async (req, res) => {
   const { report_id } = req.body;
-  
+
   if (!report_id) {
     return res.status(400).json({ error: 'Report ID is required' });
   }
@@ -1411,9 +1411,9 @@ export const testReportUrl = async (req, res) => {
       .single();
 
     const { report_url } = generateReportUrls(
-      patient.clinic_id, 
-      report.patient_id, 
-      report.raport_type, 
+      patient.clinic_id,
+      report.patient_id,
+      report.raport_type,
       report.report_id
     );
 
@@ -1452,7 +1452,7 @@ export async function generateCbctReport(report_id) {
     .select('clinic_id')
     .eq('id', reportData.patient_id)
     .single();
-  
+
   // Updated path structure: clinic_id/patient_id/report_type/report_id
   const basePath = `${patient.clinic_id}/${reportData.patient_id}/cbct/${report_id.report_id}`;
   const views = ['axial', 'sagittal', 'coronal'];
@@ -1536,7 +1536,7 @@ export async function generatePanoReport(report_id) {
     .select('clinic_id')
     .eq('id', reportData.patient_id)
     .single();
-  
+
   // Updated path structure: clinic_id/patient_id/report_type/report_id
   const basePath = `${patient.clinic_id}/${reportData.patient_id}/pano/${report_id.report_id}`;
 
@@ -1603,10 +1603,10 @@ export async function generate3dModelReport(report_id) {
     .select('clinic_id')
     .eq('id', reportData.patient_id)
     .single();
-  
+
   // Updated path structure: clinic_id/patient_id/report_type/report_id
   const basePath = `${patient.clinic_id}/${reportData.patient_id}/3dmodel/${report_id.report_id}`;
-  
+
   // أنشئ ملفات وهمية frame_0.jpg, frame_1.jpg
   const framePaths = [
     `${basePath}/frame_0.jpg`,
@@ -1657,159 +1657,159 @@ export async function generate3dModelReport(report_id) {
 }// ✅ Update Report Data JSON in Storage
 export const updateReportData = async (req, res) => {
   console.log(' 👌👌👌👌👌👌👌👌👌Updating report data...');
-    const { report_id, report_data } = req.body;
-    const userId = req.user?.id;
+  const { report_id, report_data } = req.body;
+  const userId = req.user?.id;
 
-    if (!report_id) {
-        return res.status(400).json({
-            success: false, 
-            message: 'Report ID is required',
-            error: 'Report ID is required',
-            status: 'error'
-        });
+  if (!report_id) {
+    return res.status(400).json({
+      success: false,
+      message: 'Report ID is required',
+      error: 'Report ID is required',
+      status: 'error'
+    });
+  }
+
+  if (!report_data) {
+    return res.status(400).json({
+      success: false,
+      message: 'Report data is required',
+      error: 'Report data is required',
+      status: 'error'
+    });
+  }
+
+  try {
+    // 1. Get report to verify it exists and get patient_id and report type
+    const { data: report, error: reportError } = await supabaseUser
+      .from('report_ai')
+      .select('patient_id, raport_type')
+      .eq('report_id', report_id)
+      .single();
+
+    if (reportError || !report) {
+      console.error('Report fetch error:', reportError);
+      return res.status(404).json({
+        success: false,
+        message: 'Report not found',
+        error: 'Report not found',
+        status: 'error'
+      });
     }
 
-    if (!report_data) {
-        return res.status(400).json({
-            success: false, 
-            message: 'Report data is required',
-            error: 'Report data is required',
-            status: 'error'
-        });
+    // 2. Get patient to get clinic_id
+    const { data: patient, error: patientError } = await supabaseUser
+      .from('patients')
+      .select('clinic_id')
+      .eq('id', report.patient_id)
+      .single();
+
+    if (patientError || !patient) {
+      console.error('Patient fetch error:', patientError);
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found',
+        error: 'Patient not found',
+        status: 'error'
+      });
     }
 
-    try {
-        // 1. Get report to verify it exists and get patient_id and report type
-        const { data: report, error: reportError } = await supabaseUser
-            .from('report_ai')
-            .select('patient_id, raport_type')
-            .eq('report_id', report_id)
-            .single();
+    const clinicId = patient.clinic_id;
 
-        if (reportError || !report) {
-            console.error('Report fetch error:', reportError);
-            return res.status(404).json({
-                success: false,
-                message: 'Report not found',
-                error: 'Report not found',
-                status: 'error'
-            });
-        }
+    // 3. Check if user is a member of this clinic
+    const { data: userMembership, error: membershipError } = await supabaseUser
+      .from('user_clinic_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('clinic_id', clinicId)
+      .maybeSingle();
 
-        // 2. Get patient to get clinic_id
-        const { data: patient, error: patientError } = await supabaseUser
-            .from('patients')
-            .select('clinic_id')
-            .eq('id', report.patient_id)
-            .single();
-
-        if (patientError || !patient) {
-            console.error('Patient fetch error:', patientError);
-            return res.status(404).json({
-                success: false,
-                message: 'Patient not found',
-                error: 'Patient not found',
-                status: 'error'
-            });
-        }
-
-        const clinicId = patient.clinic_id;
-
-        // 3. Check if user is a member of this clinic
-        const { data: userMembership, error: membershipError } = await supabaseUser
-            .from('user_clinic_roles')
-            .select('role')
-            .eq('user_id', userId)
-            .eq('clinic_id', clinicId)
-            .maybeSingle();
-
-        if (membershipError) {
-            console.error('Membership check error:', membershipError);
-            return res.status(500).json({
-                success: false,
-                message: 'Database error',
-                error: 'Database error',
-                status: 'error'
-            });
-        }
-
-        if (!userMembership) {
-          
-            return res.status(403).json({
-                success: false,
-                message: 'You must be a member of this clinic to update reports',
-                error: 'You must be a member of this clinic to update reports',
-                status: 'error'
-            });
-        }
-
-        // 4. Upload/Update the report.json file in Supabase storage
-        const reportPath = `${clinicId}/${report.patient_id}/${report.raport_type}/${report_id}/report.json`;
-
-        console.log('📤 Uploading report data to storage:', reportPath);
-
-        // Convert report_data to JSON string
-        console.log('Report data: ************* ', report_data);
-        const jsonContent = JSON.stringify(report_data, null, 2);
-        const blob = new Blob([jsonContent], { type: 'application/json' });
-
-        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-            .from('reports')
-            .upload(reportPath, blob, {
-                contentType: 'application/json',
-                upsert: true // This will overwrite if the file already exists
-            });
-
-        if (uploadError) {
-            console.error('Storage upload error:', uploadError);
-            return res.status(500).json({
-                success: false,
-                error: 'Failed to upload report data to storage',
-                status: 'error',
-                details: uploadError.message
-            });
-        }
-
-        console.log('✅ Report data uploaded successfully:', uploadData);
-
-        // 5. Update the report's last_upload timestamp
-        const { error: updateError } = await supabaseUser
-            .from('report_ai')
-            .update({
-                last_upload: new Date().toISOString()
-            })
-            .eq('report_id', report_id);
-
-        if (updateError) {
-            console.error('Report timestamp update error:', updateError);
-            // Don't fail the request if timestamp update fails
-        }
-
-        // 6. Generate the public URL for the uploaded file
-        const { data: publicUrlData } = supabaseAdmin.storage
-            .from('reports')
-            .getPublicUrl(reportPath);
-
-        res.json({
-            success: true,
-            message: 'Report data updated successfully',
-            status: 'success',
-            report: {
-                id: report_id,
-                patient_id: report.patient_id,
-                clinic_id: clinicId,
-                raport_type: report.raport_type,
-                storage_path: reportPath,
-                public_url: publicUrlData.publicUrl
-            }
-        });
-
-    } catch (err) {
-        console.error('Unexpected error:', err);
-        res.status(500).json({
-            success: false,
-            error: err.message,
-            status: 'error'
-        });
+    if (membershipError) {
+      console.error('Membership check error:', membershipError);
+      return res.status(500).json({
+        success: false,
+        message: 'Database error',
+        error: 'Database error',
+        status: 'error'
+      });
     }
+
+    if (!userMembership) {
+
+      return res.status(403).json({
+        success: false,
+        message: 'You must be a member of this clinic to update reports',
+        error: 'You must be a member of this clinic to update reports',
+        status: 'error'
+      });
+    }
+
+    // 4. Upload/Update the report.json file in Supabase storage
+    const reportPath = `${clinicId}/${report.patient_id}/${report.raport_type}/${report_id}/report.json`;
+
+    console.log('📤 Uploading report data to storage:', reportPath);
+
+    // Convert report_data to JSON string
+    console.log('Report data: ************* ', report_data);
+    const jsonContent = JSON.stringify(report_data, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+
+    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+      .from('reports')
+      .upload(reportPath, blob, {
+        contentType: 'application/json',
+        upsert: true // This will overwrite if the file already exists
+      });
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to upload report data to storage',
+        status: 'error',
+        details: uploadError.message
+      });
+    }
+
+    console.log('✅ Report data uploaded successfully:', uploadData);
+
+    // 5. Update the report's last_upload timestamp
+    const { error: updateError } = await supabaseUser
+      .from('report_ai')
+      .update({
+        last_upload: new Date().toISOString()
+      })
+      .eq('report_id', report_id);
+
+    if (updateError) {
+      console.error('Report timestamp update error:', updateError);
+      // Don't fail the request if timestamp update fails
+    }
+
+    // 6. Generate the public URL for the uploaded file
+    const { data: publicUrlData } = supabaseAdmin.storage
+      .from('reports')
+      .getPublicUrl(reportPath);
+
+    res.json({
+      success: true,
+      message: 'Report data updated successfully',
+      status: 'success',
+      report: {
+        id: report_id,
+        patient_id: report.patient_id,
+        clinic_id: clinicId,
+        raport_type: report.raport_type,
+        storage_path: reportPath,
+        public_url: publicUrlData.publicUrl
+      }
+    });
+
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      status: 'error'
+    });
+  }
 };

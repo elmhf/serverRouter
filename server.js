@@ -13,6 +13,7 @@ import patientRoutes from './routes/patientRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import notificationRoutes from './routes/notificationRouter.js';
 import securityRoutes from './routes/securityRoutes.js';
+import fileRoutes from './routes/fileRoutes.js';
 import cookieParser from 'cookie-parser';
 import { initializeSocket } from './controllers/socketController.js';
 
@@ -55,6 +56,7 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/security', securityRoutes);
+app.use('/api/files', fileRoutes);
 // Serve static files
 app.use('/uploads', express.static('uploads'));
 

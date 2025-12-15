@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        .upload-form {
+            border: 2px dashed #ccc;
+            padding: 30px;
+            border-radius: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .progress {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .progress.show {
+            display: block;
+        }
+
+        .log {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        .success {
+            color: #4CAF50;
+            margin-top: 10px;
+        }
+
+        .error {
+            color: #f44336;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>📁 File Upload to Supabase</h1>
+
+    <div class="upload-form">
+        <div class="form-group">
+            <label>🔑 Token (من login):</label>
+            <input type="text" id="token" placeholder="Bearer token" value="">
+        </div>
+
+        <div class="form-group">
+            <label>🏥 Clinic ID:</label>
+            <input type="text" id="clinicId" placeholder="uuid" value="">
+        </div>
+
+        <div class="form-group">
+            <label>👤 Patient ID (optional):</label>
+            <input type="text" id="patientId" placeholder="uuid" value="">
+        </div>
+
+        <div class="form-group">
+            <label>📎 Select File:</label>
+            <input type="file" id="fileInput">
+        </div>
+
+        <button id="uploadBtn">Upload File</button>
+
+        <div class="progress" id="progress">
+            <div id="progressText">⏳ Processing...</div>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        // Logging helper
+        function log(message, emoji = '📝') {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div>${emoji} [${time}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Main upload function
+        async function uploadFile() {
+            const token = document.getElementById('token').value.trim();
+            const clinicId = document.getElementById('clinicId').value.trim();
+            const patientId = document.getElementById('patientId').value.trim();
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            // Validation
+            if (!token) {
+                alert('❌ Please enter your token');
+                return;
+            }
+            if (!clinicId) {
+                alert('❌ Please enter clinic ID');
+                return;
+            }
+            if (!file) {
+                alert('❌ Please select a file');
+                return;
+            }
+
+            const uploadBtn = document.getElementById('uploadBtn');
+            const progress = document.getElementById('progress');
+            const result = document.getElementById('result');
+
+            uploadBtn.disabled = true;
+            progress.classList.add('show');
+            result.innerHTML = '';
+            document.getElementById('log').innerHTML = '';
+
+            try {
+                log('🚀 Starting upload process...', '🚀');
+                log(`📁 File: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`, '📁');
+
+                // Step 1: Generate Upload URL
+                log('Step 1: Requesting upload URL...', '🔑');
+                document.getElementById('progressText').textContent = '🔑 Step 1/3: Getting upload URL...';
+
+                const urlResponse = await fetch(`${API_BASE}/files/generate-upload-url`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        clinic_id: clinicId,
+                        patient_id: patientId || null,
+                        file_name: file.name,
+                        file_type: file.type
+                    })
+                });
+
+                if (!urlResponse.ok) {
+                    const errorData = await urlResponse.json();
+                    throw new Error(errorData.error || 'Failed to get upload URL');
+                }
+
+                const { uploadUrl, file: fileInfo } = await urlResponse.json();
+                log('✅ Upload URL received', '✅');
+                log(`   File ID: ${fileInfo.id}`, '  ');
+                log(`   Path: ${fileInfo.file_path}`, '  ');
+
+                // Step 2: Upload to Supabase
+                log('Step 2: Uploading to Supabase...', '☁️');
+                document.getElementById('progressText').textContent = '☁️  Step 2/3: Uploading to Supabase...';
+
+                const uploadResponse = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type,
+                        'x-upsert': 'false'
+                    }
+                });
+
+                if (!uploadResponse.ok) {
+                    throw new Error('Failed to upload to Supabase');
+                }
+
+                log('✅ File uploaded to Supabase', '✅');
+
+                // Step 3: Confirm Upload
+                log('Step 3: Confirming upload...', '📝');
+                document.getElementById('progressText').textContent = '📝 Step 3/3: Confirming upload...';
+
+                const confirmResponse = await fetch(`${API_BASE}/files/confirm-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        file_id: fileInfo.id,
+                        file_path: fileInfo.file_path,
+                        bucket_name: fileInfo.bucket_name,
+                        file_name: fileInfo.file_name,
+                        file_type: fileInfo.file_type,
+                        patient_id: fileInfo.patient_id,
+                        clinic_id: fileInfo.clinic_id
+                    })
+                });
+
+                if (!confirmResponse.ok) {
+                    const errorData = await confirmResponse.json();
+                    throw new Error(errorData.error || 'Failed to confirm upload');
+                }
+
+                const uploadResult = await confirmResponse.json();
+                log('✅ Upload confirmed!', '✅');
+                log(`   Public URL: ${uploadResult.file.url}`, '🔗');
+
+                // Success!
+                result.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Upload Successful!</h3>
+                        <p><strong>File ID:</strong> ${uploadResult.file.id}</p>
+                        <p><strong>File Name:</strong> ${uploadResult.file.file_name}</p>
+                        <p><strong>URL:</strong> <a href="${uploadResult.file.url}" target="_blank">${uploadResult.file.url}</a></p>
+                    </div>
+                `;
+
+                log('🎉 Upload completed successfully!', '🎉');
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, '❌');
+                result.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Upload Failed</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                uploadBtn.disabled = false;
+                progress.classList.remove('show');
+            }
+        }
+
+        // Event listener
+        document.getElementById('uploadBtn').addEventListener('click', uploadFile);
+    </script>
+</body>
+
+</html>

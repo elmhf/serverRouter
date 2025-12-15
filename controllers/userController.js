@@ -116,7 +116,7 @@ export const changePassword = async (req, res) => {
       .eq('user_id', userId)
       .single();
     if (userError || !user) {
-      console.log("userError || !user","userError",userError,"user",user);
+      console.log("userError || !user", "userError", userError, "user", user);
       return res.status(404).json({ error: 'User not found.' });
     }
     if (user.password !== oldPassword) {
@@ -126,11 +126,11 @@ export const changePassword = async (req, res) => {
     }
     console.log("user.password === oldPassword");
     // Mettre à jour le mot de passe dans la table user
-        // Mettre à jour le mot de passe dans Supabase Auth
+    // Mettre à jour le mot de passe dans Supabase Auth
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-          password: newPassword
-        });
-        
+      password: newPassword
+    });
+
     const { error: dbError } = await supabaseUser
       .from('user')
       .update({ password: newPassword })
@@ -164,9 +164,9 @@ export const changeName = async (req, res) => {
   console.log("lastName", lastName);
   try {
     // Mettre à jour le nom dans Supabase Auth (snake_case)
-  
 
-    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId,   {
+
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       user_metadata: {
         first_name: firstName,
         last_name: lastName
@@ -199,9 +199,9 @@ export const changeSignature = async (req, res) => {
   try {
     console.log('معلومات الملف:', req.file);
     if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'لازم تبعث ملف الإمضاء' 
+      return res.status(400).json({
+        success: false,
+        message: 'لازم تبعث ملف الإمضاء'
       });
     }
 
@@ -292,7 +292,7 @@ export const changeSignature = async (req, res) => {
 };
 
 export const changeProfilePhoto = async (req, res) => {
-  console.log("*******************************",req.user);
+  console.log("*******************************", req.user);
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -382,6 +382,86 @@ export const changeProfilePhoto = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'خطأ في السيرفر'
+    });
+  }
+};
+
+export const deleteProfilePhoto = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    console.log(`[deleteProfilePhoto] Request for user:`, userId);
+
+    // 1. Get current profile photo URL from DB
+    const { data: userData, error: userFetchError } = await supabaseUser
+      .from('user')
+      .select('profilePhotoUrl')
+      .eq('user_id', userId)
+      .single();
+
+    if (userFetchError) {
+      console.error('[deleteProfilePhoto] Error fetching user data:', userFetchError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch user data'
+      });
+    }
+
+    if (!userData.profilePhotoUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'No profile photo to delete'
+      });
+    }
+
+    // 2. Remove profile photo from Supabase storage
+    try {
+      const urlParts = userData.profilePhotoUrl.split('/');
+      const fileName = urlParts[urlParts.length - 1];
+
+      if (fileName) {
+        const { error: removeError } = await supabaseAdmin.storage
+          .from('profile-photos')
+          .remove([fileName]);
+
+        if (removeError) {
+          console.error('[deleteProfilePhoto] Error removing file from storage:', removeError);
+          // Continue anyway to set DB field to null
+        } else {
+          console.log(`[deleteProfilePhoto] File removed from storage:`, fileName);
+        }
+      }
+    } catch (removeError) {
+      console.error('[deleteProfilePhoto] Error during file removal:', removeError);
+      // Continue to update DB
+    }
+
+    // 3. Update user table to set profilePhotoUrl to null
+    const { error: updateError } = await supabaseUser
+      .from('user')
+      .update({ profilePhotoUrl: null })
+      .eq('user_id', userId);
+
+    if (updateError) {
+      console.error('[deleteProfilePhoto] Error updating user table:', updateError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update database'
+      });
+    }
+
+    console.log(`[deleteProfilePhoto] Profile photo deleted successfully for user:`, userId);
+
+    res.json({
+      success: true,
+      message: 'Profile photo deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('[deleteProfilePhoto] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
     });
   }
 };

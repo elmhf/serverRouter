@@ -75,7 +75,7 @@ export const createUploader = (options = {}) => {
   } = options;
 
   const storage = createStorage(uploadPath, filenamePrefix);
-  
+
   const upload = multer({
     storage: storage,
     limits: {
@@ -125,6 +125,15 @@ export const uploaders = {
     uploadPath: 'general',
     filenamePrefix: 'file',
     maxSize: 50 * 1024 * 1024, // 50MB
+    fileFilter: 'any',
+    fieldName: 'file'
+  }),
+
+  // للملفات الكبيرة (حد أقصى 1GB)
+  largeFile: createUploader({
+    uploadPath: 'large-files',
+    filenamePrefix: 'file',
+    maxSize: 1024 * 1024 * 1024, // 1GB
     fileFilter: 'any',
     fieldName: 'file'
   })

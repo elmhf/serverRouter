@@ -240,7 +240,7 @@ export const getPatients = async (req, res) => {
     const isFullAccess = userRole === 'full_access';
     const isClinicAccess = userRole === 'clinic_access';
 
-    // 4. Get all patients with their treating doctors information
+    // 4. Get all patients with their treating doctors information and reports
     const { data: allPatients, error: patientsError } = await supabaseUser
       .from('patients')
       .select(`
@@ -250,8 +250,16 @@ export const getPatients = async (req, res) => {
           user!treating_doctor_id (
             user_id,
             firstName,
-            lastName
+            lastName,
+            profilePhotoUrl
           )
+        ),
+        report_ai (
+          report_id,
+          raport_type,
+          created_at,
+          last_upload,
+          status
         )
       `)
       .eq('clinic_id', clinicId);
@@ -274,23 +282,59 @@ export const getPatients = async (req, res) => {
 
     const favoritePatientIds = userFavorites?.map(fav => fav.patient_id) || [];
 
-    // 6. Process patients to include treating doctors info, check if current user is treating doctor, and check if favorite
-    const processedPatients = allPatients?.map(patient => {
+    // 6. Process patients to include treating doctors info, last report image, check if current user is treating doctor, and check if favorite
+    const processedPatients = await Promise.all(allPatients?.map(async patient => {
       const treatingDoctors = patient.treatments?.map(treatment => treatment.user).filter(Boolean) || [];
       const isCurrentUserTreatingDoctor = treatingDoctors.some(doctor => doctor.user_id === userId);
       const isFavorite = favoritePatientIds.includes(patient.id);
+
+      // Get the last report's image if available
+      let lastReportImageUrl = null;
+      if (patient.report_ai && patient.report_ai.length > 0) {
+        console.log(`\n📸 Processing images for patient: ${patient.first_name} ${patient.last_name} (${patient.id})`);
+        console.log(`   Total reports: ${patient.report_ai.length}`);
+
+        // Sort reports by created_at descending to get the most recent one
+        const sortedReports = [...patient.report_ai].sort((a, b) =>
+          new Date(b.created_at) - new Date(a.created_at)
+        );
+        const lastReport = sortedReports[0];
+
+        console.log(`   Last report ID: ${lastReport.report_id}`);
+        console.log(`   Report type: ${lastReport.raport_type}`);
+        console.log(`   Created at: ${lastReport.created_at}`);
+
+        // Build the path for original.png
+        const path = `${clinicId}/${patient.id}/${lastReport.raport_type}/${lastReport.report_id}/original.png`;
+        console.log(`   Storage path: ${path}`);
+
+        // Get the public URL from Supabase storage
+        const { data: publicUrlData } = supabaseUser.storage
+          .from('reports')
+          .getPublicUrl(path);
+
+        lastReportImageUrl = publicUrlData?.publicUrl || null;
+        console.log(`   Image URL: ${lastReportImageUrl ? '✅ Generated' : '❌ Not available'}`);
+        if (lastReportImageUrl) {
+          console.log(`   URL: ${lastReportImageUrl}`);
+        }
+      } else {
+        console.log(`\n📸 Patient ${patient.first_name} ${patient.last_name} (${patient.id}) has no reports`);
+      }
 
       return {
         ...patient,
         treating_doctors: treatingDoctors.map(doctor => ({
           id: doctor.user_id,
           first_name: doctor.firstName,
-          last_name: doctor.lastName
+          last_name: doctor.lastName,
+          profilePhotoUrl: doctor.profilePhotoUrl
         })),
         is_treating_doctor: isCurrentUserTreatingDoctor,
-        isFavorite: isFavorite
+        isFavorite: isFavorite,
+        lastReportImageUrl: lastReportImageUrl
       };
-    }) || [];
+    }) || []);
 
     res.json({
       message: 'Patients retrieved successfully',
@@ -327,7 +371,8 @@ export const getPatient = async (req, res) => {
           user!treating_doctor_id (
             user_id,
             firstName,
-            lastName
+            lastName,
+            profilePhotoUrl
           )
         ),
         report_ai (
@@ -430,12 +475,14 @@ export const getPatient = async (req, res) => {
         email: patient.email,
         phone: patient.phone,
         address: patient.address,
+        description: patient.description,
         created_at: patient.created_at,
         clinic: patient.clinics,
         treating_doctors: treatingDoctors.map((doctor) => ({
           id: doctor.user_id,
           first_name: doctor.firstName,
           last_name: doctor.lastName,
+          profilePhotoUrl: doctor.profilePhotoUrl
         })),
         reports: reportsWithImages,
         isFavorite,
@@ -653,6 +700,62 @@ export const updatePatient = async (req, res) => {
 
     res.json({
       message: 'Patient updated successfully',
+      patient: updatedPatient
+    });
+
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ✅ Update patient description
+export const updatePatientDescription = async (req, res) => {
+  const { patientId, description } = req.body;
+  const userId = req.user?.id;
+
+  if (!patientId) {
+    return res.status(400).json({ error: 'Patient ID is required' });
+  }
+
+  try {
+    // 1. Get patient to check clinic access
+    const { data: existingPatient, error: patientError } = await supabaseUser
+      .from('patients')
+      .select('clinic_id')
+      .eq('id', patientId)
+      .single();
+
+    if (patientError) {
+      console.error('Patient fetch error:', patientError);
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    // 2. Check permissions
+    const isCreator = await isClinicCreator(userId, existingPatient.clinic_id);
+    const canEditPatient = await hasPermission(userId, existingPatient.clinic_id, 'edit_patient');
+
+    if (!isCreator && !canEditPatient) {
+      return res.status(403).json({
+        error: 'You do not have permission to edit patients in this clinic'
+      });
+    }
+
+    // 3. Update description
+    const { data: updatedPatient, error: updateError } = await supabaseUser
+      .from('patients')
+      .update({ description })
+      .eq('id', patientId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Patient description update error:', updateError);
+      return res.status(500).json({ error: 'Failed to update description' });
+    }
+
+    res.json({
+      message: 'Description updated successfully',
       patient: updatedPatient
     });
 

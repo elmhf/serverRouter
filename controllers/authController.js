@@ -1024,13 +1024,14 @@ export async function verifyEmailUpdateCode(req, res) {
 export async function verifyPassword(req, res) {
   try {
     const { email, password } = req.body;
+    console.log(email, password, "email and password-----------------")
     if (!email || !password) return res.status(400).json({ valid: false, error: 'Email and password are required' });
     // Get user by email
-    const { data: userData, error: userError } = await supabaseAdmin.from('user').select('password').eq('email', email).single();
-    if (userError || !userData) return res.status(404).json({ valid: false, error: 'User not found' });
+    const { data: userData, error: userError } = await supabaseAdmin.from('user').select('password').eq('email', email);
+    if (userError || !userData || userData.length === 0) return res.status(404).json({ valid: false, error: 'User not found' });
     // Compare password (plain text)
-    console.log(userData.password, password, "password-----------------")
-    if (userData.password === password) {
+    console.log(userData, password, userData[0].password == password, "password-----------------")
+    if (userData[0].password == password) {
       return res.json({ valid: true });
     } else {
       return res.json({ valid: false });
