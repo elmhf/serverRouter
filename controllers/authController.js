@@ -1347,6 +1347,17 @@ export async function confirmAccountDeletion(req, res) {
       });
     }
 
+    // 3.5. Explicitly delete from 'user' table
+    const { error: userTableError } = await supabaseAdmin
+      .from('user')
+      .delete()
+      .eq('user_id', userId);
+
+    if (userTableError) {
+      console.error('[confirmAccountDeletion] Failed to delete from user table:', userTableError);
+      return res.status(500).json({ error: 'Failed to clean up user data' });
+    }
+
     // 4. Delete user from Supabase Auth (cascade will handle related records)
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
