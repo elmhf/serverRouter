@@ -15,7 +15,7 @@ import notificationRoutes from './routes/notificationRouter.js';
 import securityRoutes from './routes/securityRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
 import cookieParser from 'cookie-parser';
-import { initializeSocket } from './controllers/socketController.js';
+import { initializeSocket } from './sockets/index.js';
 
 
 

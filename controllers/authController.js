@@ -1227,7 +1227,7 @@ export async function initiateAccountDeletion(req, res) {
     // 2. Check if user owns any clinics
     const { data: ownedClinics, error: clinicsError } = await supabaseAdmin
       .from('clinics')
-      .select('id, clinic_name')
+      .select('id, clinic_name,logo_url')
       .eq('created_by', userId);
 
     if (clinicsError) {
@@ -1241,7 +1241,8 @@ export async function initiateAccountDeletion(req, res) {
         error: 'You cannot delete your account while you own clinics. Please delete or transfer ownership of all your clinics first.',
         ownedClinics: ownedClinics.map(c => ({
           id: c.id,
-          name: c.clinic_name
+          name: c.clinic_name,
+          logo_url: c.logo_url
         }))
       });
     }

@@ -1,5 +1,11 @@
 import { supabaseUser } from '../supabaseClient.js';
 
+// Token Expiration Configuration
+const TOKEN_CONFIG = {
+  ACCESS_TOKEN_AGE: parseInt(process.env.ACCESS_TOKEN_AGE) || 15 * 60 * 1000,
+  REFRESH_TOKEN_AGE: parseInt(process.env.REFRESH_TOKEN_AGE) || 7 * 24 * 60 * 60 * 1000
+};
+
 export async function authMiddleware(req, res, next) {
   console.log('fetch notification ---------------')
 
@@ -12,7 +18,7 @@ export async function authMiddleware(req, res, next) {
   }
 
   if (!accessToken) {
-    return res.status(401).json({ 
+    return res.status(401).json({
       error: 'No access token provided',
       code: 'NO_TOKEN'
     });
@@ -22,7 +28,7 @@ export async function authMiddleware(req, res, next) {
   try {
     // محاولة التحقق من الـ access token
     const { data: userData, error: userError } = await supabaseUser.auth.getUser(accessToken);
-    
+
     if (!userError && userData && userData.user) {
       // الـ token صالح
       req.user = {
@@ -39,7 +45,7 @@ export async function authMiddleware(req, res, next) {
     if (!refreshToken) {
       // مسح الـ cookies المنتهية الصلاحية
       clearAuthCookies(res);
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Access token expired and no refresh token available',
         code: 'TOKEN_EXPIRED'
       });
@@ -54,7 +60,7 @@ export async function authMiddleware(req, res, next) {
       console.error('Refresh token error:', refreshError);
       // مسح الـ cookies غير الصالحة
       clearAuthCookies(res);
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Failed to refresh token',
         code: 'REFRESH_FAILED'
       });
@@ -77,7 +83,7 @@ export async function authMiddleware(req, res, next) {
   } catch (error) {
     console.error('Auth middleware error:', error);
     clearAuthCookies(res);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'Authentication error',
       code: 'AUTH_ERROR'
     });
@@ -87,7 +93,7 @@ export async function authMiddleware(req, res, next) {
 // دالة لإعداد الـ HTTP-only cookies
 function setAuthCookies(res, accessToken, refreshToken) {
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   const cookieOptions = {
     httpOnly: true,        // HTTP-only لأمان أكبر
     secure: isProduction,  // HTTPS في الـ production فقط
@@ -95,16 +101,16 @@ function setAuthCookies(res, accessToken, refreshToken) {
     path: '/'
   };
 
-  // Access token - مدة قصيرة
+  // Access token
   res.cookie('access_token', accessToken, {
     ...cookieOptions,
-    maxAge: 15 * 60 * 1000 // 15 دقيقة
+    maxAge: TOKEN_CONFIG.ACCESS_TOKEN_AGE
   });
 
-  // Refresh token - مدة أطول
+  // Refresh token
   res.cookie('refresh_token', refreshToken, {
     ...cookieOptions,
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 أيام
+    maxAge: TOKEN_CONFIG.REFRESH_TOKEN_AGE
   });
 }
 
@@ -124,11 +130,11 @@ function clearAuthCookies(res) {
 // دالة للتحقق من انتهاء صلاحية الـ token
 export function isTokenExpired(token) {
   if (!token) return true;
-  
+
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     const currentTime = Date.now() / 1000;
-    
+
     // التحقق إذا كان الـ token سينتهي خلال دقيقتين
     return payload.exp < (currentTime + 120);
   } catch (error) {
@@ -141,16 +147,16 @@ export function isTokenExpired(token) {
 export async function preemptiveRefreshMiddleware(req, res, next) {
   const accessToken = req.cookies?.access_token;
   const refreshToken = req.cookies?.refresh_token;
-  
+
   // فقط إذا كان هناك tokens وكان الـ access token قريب من الانتهاء
   if (accessToken && refreshToken && isTokenExpired(accessToken)) {
     console.log('Token will expire soon, refreshing preemptively...');
-    
+
     try {
       const { data: refreshData, error } = await supabaseUser.auth.refreshSession({
         refresh_token: refreshToken
       });
-      
+
       if (!error && refreshData?.session) {
         const { session } = refreshData;
         setAuthCookies(res, session.access_token, session.refresh_token);
@@ -161,7 +167,7 @@ export async function preemptiveRefreshMiddleware(req, res, next) {
       // لا نمسح الـ cookies هنا، نتركها للـ authMiddleware
     }
   }
-  
+
   next();
 }
 
@@ -170,9 +176,9 @@ export async function loginAndSetCookies(res, session) {
   if (!session || !session.access_token || !session.refresh_token) {
     throw new Error('Invalid session data');
   }
-  
+
   setAuthCookies(res, session.access_token, session.refresh_token);
-  
+
   return {
     user: {
       id: session.user.id,
@@ -192,12 +198,12 @@ export function logoutAndClearCookies(res) {
 export function validateCookiesMiddleware(req, res, next) {
   const accessToken = req.cookies?.access_token;
   const refreshToken = req.cookies?.refresh_token;
-  
+
   // إذا كان هناك access token بدون refresh token، امسح الكل
   if (accessToken && !refreshToken) {
     console.log('Invalid cookie state: access token without refresh token');
     clearAuthCookies(res);
   }
-  
+
   next();
 }

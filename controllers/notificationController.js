@@ -7,12 +7,10 @@ export async function getNotificationsByUserId(userId) {
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
-  console.log("datanotification-------", data)
   if (error) {
     console.error("Error fetching notifications:", error);
     return [];
   }
-  console.log(data)
   return { data, error };
 }
 

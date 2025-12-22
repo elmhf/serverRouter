@@ -6,7 +6,7 @@ import FormData from 'form-data';
 import fetch from 'node-fetch';
 
 // Flask API configuration
-const FLASK_API_URL = 'http://localhost:5001'; // Update with your Flask server URL
+const FLASK_API_URL = 'http://localhost:5030'; // Update with your Flask server URL
 const cbct_report_generated = `${FLASK_API_URL}/cbct-report-generated`;
 const pano_report_generated = `${FLASK_API_URL}/pano-report-generated`;
 
@@ -85,6 +85,7 @@ const callFlaskUploadAPI = async (filePath, clinicId, patientId, reportType, rep
 
     // Determine which Flask endpoint to use based on report type
     const flaskEndpoint = reportType.toLowerCase() === 'pano' ? pano_report_generated : cbct_report_generated;
+    console.log('Flask endpoint:', flaskEndpoint);
 
     // Make request to Flask API
     const response = await fetch(flaskEndpoint, {
@@ -112,6 +113,25 @@ const callFlaskUploadAPI = async (filePath, clinicId, patientId, reportType, rep
 
   } catch (error) {
     console.error('❌ Flask API call failed:', error);
+
+    // Update report status to failed immediately
+    try {
+      await supabaseUser
+        .from('report_ai')
+        .update({
+          status: 'failed',
+          processing_info: {
+            flask_success: false,
+            error: error.message,
+            failed_at: new Date().toISOString()
+          }
+        })
+        .eq('report_id', reportId);
+      console.log('❌ Report status updated to failed');
+    } catch (dbError) {
+      console.error('❌ Failed to update report status:', dbError);
+    }
+
     return {
       success: false,
       error: error.message,
@@ -1298,28 +1318,50 @@ export const getReportDataWithJsonPost = async (req, res) => {
     // Add signed pano image URL if type is pano
     let pano_image_url = null;
     if (report.raport_type === 'pano') {
-      const { data, error } = await supabaseAdmin
-        .storage
-        .from('reports')
-        .createSignedUrl(`${patient.clinic_id}/${report.patient_id}/pano/${report.report_id}/original.png`, 60 * 1);
-      // 1 hour
-      console.log('pano_image_url-----------------------------:', data?.signedUrl, error);
-      pano_image_url = data?.signedUrl || null;
+      const panoPath = `${patient.clinic_id}/${report.patient_id}/pano/${report.report_id}/original.png`;
+      console.log('🔍 Generating Signed URL for Pano:', panoPath);
+
+      try {
+        const { data, error } = await supabaseAdmin
+          .storage
+          .from('reports')
+          .createSignedUrl(panoPath, 60 * 60); // 1 hour
+
+        if (error) {
+          console.error('❌ Error generating pano signed URL:', error);
+          // Don't crash, just log it. The file might not be ready yet.
+        } else {
+          console.log('✅ Pano URL generated:', data?.signedUrl ? 'Yes' : 'No');
+          pano_image_url = data?.signedUrl || null;
+        }
+      } catch (err) {
+        console.error('💥 Exception generating pano signed URL:', err);
+      }
     }
 
     // Add signed cbct image URL if type is cbct
     let cbct_image_url = null;
-    console.log(report.raport_type, 'report.raport_type')
-    if (report.raport_type === 'cbct') {
-      console.log('CBCT Image URL-----------------------------:', `${patient.clinic_id}/${report.patient_id}/cbct/${report.report_id}/original.png`);
-      const { data, error } = await supabaseAdmin
-        .storage
-        .from('reports')
-        .createSignedUrl(`${patient.clinic_id}/${report.patient_id}/cbct/${report.report_id}/original.png`, 60 * 1); // 1 hour
+    console.log(report.raport_type, 'report.raport_type');
 
-      console.log("data", data)
-      cbct_image_url = data?.signedUrl || null;
-      console.log('CBCT Image URL-----------------------------:', cbct_image_url, error);
+    if (report.raport_type === 'cbct') {
+      const cbctPath = `${patient.clinic_id}/${report.patient_id}/cbct/${report.report_id}/original.png`;
+      console.log('🔍 Generating Signed URL for CBCT:', cbctPath);
+
+      try {
+        const { data, error } = await supabaseAdmin
+          .storage
+          .from('reports')
+          .createSignedUrl(cbctPath, 60 * 60); // 1 hour
+
+        if (error) {
+          console.error('❌ Error generating CBCT signed URL:', error);
+        } else {
+          console.log('✅ CBCT URL generated:', data?.signedUrl ? 'Yes' : 'No');
+          cbct_image_url = data?.signedUrl || null;
+        }
+      } catch (err) {
+        console.error('💥 Exception generating CBCT signed URL:', err);
+      }
     }
 
     try {
@@ -1476,7 +1518,7 @@ export async function generateCbctReport(report_id) {
   // ✅ Upload actual cbct image from client if provided
   if (report_id.uploadedFile) {
     try {
-      const cbctImagePath = `${basePath}/cbct.jpg`;
+      const cbctImagePath = `${basePath}/original.png`;
       const fileBuffer = fs.readFileSync(report_id.uploadedFile.path);
       const { error: cbctImageError } = await supabaseAdmin.storage
         .from('reports')
@@ -1496,7 +1538,7 @@ export async function generateCbctReport(report_id) {
     }
   }
 
-  // اختيار ملف عشوائي من مجلد data ورفعه كـ reportData.json
+  // اختيار ملف عشوائي من مجلد data ورفعه كـ report.json
   try {
     const dataDir = path.join(process.cwd(), 'data');
     const files = fs.readdirSync(dataDir).filter(f => f.endsWith('.json'));
@@ -1504,7 +1546,7 @@ export async function generateCbctReport(report_id) {
     const randomFile = files[Math.floor(Math.random() * files.length)];
     const randomFilePath = path.join(dataDir, randomFile);
     const fileContent = fs.readFileSync(randomFilePath);
-    const reportDataPath = `${basePath}/reportData.json`;
+    const reportDataPath = `${basePath}/report.json`;
     const { error: reportDataError } = await supabaseAdmin.storage
       .from('reports')
       .upload(reportDataPath, new Blob([fileContent]), {
@@ -1512,10 +1554,10 @@ export async function generateCbctReport(report_id) {
         upsert: false,
       });
     if (reportDataError && !reportDataError.message.includes('The resource already exists')) {
-      console.error(`❌ Failed to create reportData.json:`, reportDataError);
+      console.error(`❌ Failed to create report.json:`, reportDataError);
       return { success: false, error: reportDataError };
     } else {
-      console.log(`✅ Created reportData.json in ${basePath} from random file: ${randomFile}`);
+      console.log(`✅ Created report.json in ${basePath} from random file: ${randomFile}`);
     }
   } catch (err) {
     console.error('Error selecting/uploading random report data:', err);
@@ -1540,56 +1582,36 @@ export async function generatePanoReport(report_id) {
   // Updated path structure: clinic_id/patient_id/report_type/report_id
   const basePath = `${patient.clinic_id}/${reportData.patient_id}/pano/${report_id.report_id}`;
 
-  // ✅ Upload actual pano image from client if provided
+  // ✅ Call Flask API for pano processing
   if (report_id.uploadedFile) {
     try {
-      const panoPath = `${basePath}/pano.jpg`;
-      const fileBuffer = fs.readFileSync(report_id.uploadedFile.path);
-      const { error: panoError } = await supabaseAdmin.storage
-        .from('reports')
-        .upload(panoPath, fileBuffer, {
-          contentType: report_id.uploadedFile.mimetype || 'image/jpeg',
-          upsert: false,
-        });
-      if (panoError && !panoError.message.includes('The resource already exists')) {
-        console.error(`❌ Failed to upload pano image:`, panoError);
-        return { success: false, error: panoError };
-      } else {
-        console.log(`✅ Uploaded pano image from client to Supabase:`, panoPath);
+      console.log('🚀 Calling Flask API for pano processing...');
+
+      // Call Flask API using the helper function
+      const flaskResults = await callFlaskUploadAPI(
+        report_id.uploadedFile.path,
+        patient.clinic_id,
+        reportData.patient_id,
+        'pano',
+        report_id.report_id
+      );
+
+      if (!flaskResults.success) {
+        console.error('❌ Flask API call failed:', flaskResults.error);
+        return { success: false, error: flaskResults.error };
       }
+
+      console.log('✅ Flask API processing completed successfully');
+      return { success: true, flask_data: flaskResults.data };
+
     } catch (err) {
-      console.error('Error uploading pano image:', err);
-      return { success: false, error: err };
+      console.error('Error calling Flask API:', err);
+      return { success: false, error: err.message };
     }
+  } else {
+    console.error('❌ No file provided for pano processing');
+    return { success: false, error: 'No file provided for processing' };
   }
-
-  // اختيار ملف عشوائي من مجلد data ورفعه كـ reportData.json
-  try {
-    const dataDir = path.join(process.cwd(), 'data');
-    const files = fs.readdirSync(dataDir).filter(f => f.endsWith('.json'));
-    if (files.length === 0) throw new Error('No JSON files found in /data');
-    const randomFile = files[Math.floor(Math.random() * files.length)];
-    const randomFilePath = path.join(dataDir, randomFile);
-    const fileContent = fs.readFileSync(randomFilePath);
-    const reportDataPath = `${basePath}/reportData.json`;
-    const { error: reportDataError } = await supabaseAdmin.storage
-      .from('reports')
-      .upload(reportDataPath, new Blob([fileContent]), {
-        contentType: 'application/json',
-        upsert: false,
-      });
-    if (reportDataError && !reportDataError.message.includes('The resource already exists')) {
-      console.error(`❌ Failed to create reportData.json:`, reportDataError);
-      return { success: false, error: reportDataError };
-    } else {
-      console.log(`✅ Created reportData.json in ${basePath} from random file: ${randomFile}`);
-    }
-  } catch (err) {
-    console.error('Error selecting/uploading random report data:', err);
-    return { success: false, error: err };
-  }
-
-  return { success: true };
 }
 
 export async function generate3dModelReport(report_id) {
@@ -1627,7 +1649,7 @@ export async function generate3dModelReport(report_id) {
     }
   }
 
-  // اختيار ملف عشوائي من مجلد data ورفعه كـ reportData.json
+  // اختيار ملف عشوائي من مجلد data ورفعه كـ report.json
   try {
     const dataDir = path.join(process.cwd(), 'data');
     const files = fs.readdirSync(dataDir).filter(f => f.endsWith('.json'));
@@ -1635,7 +1657,7 @@ export async function generate3dModelReport(report_id) {
     const randomFile = files[Math.floor(Math.random() * files.length)];
     const randomFilePath = path.join(dataDir, randomFile);
     const fileContent = fs.readFileSync(randomFilePath);
-    const reportDataPath = `${basePath}/reportData.json`;
+    const reportDataPath = `${basePath}/report.json`;
     const { error: reportDataError } = await supabaseAdmin.storage
       .from('reports')
       .upload(reportDataPath, new Blob([fileContent]), {
@@ -1643,10 +1665,10 @@ export async function generate3dModelReport(report_id) {
         upsert: false,
       });
     if (reportDataError && !reportDataError.message.includes('The resource already exists')) {
-      console.error(`❌ Failed to create reportData.json:`, reportDataError);
+      console.error(`❌ Failed to create report.json:`, reportDataError);
       return { success: false, error: reportDataError };
     } else {
-      console.log(`✅ Created reportData.json in ${basePath} from random file: ${randomFile}`);
+      console.log(`✅ Created report.json in ${basePath} from random file: ${randomFile}`);
     }
   } catch (err) {
     console.error('Error selecting/uploading random report data:', err);
