@@ -3,7 +3,12 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import cors from 'cors';
 import { createTransport } from 'nodemailer';
-require('dotenv').config();
+import 'dotenv/config';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const port = 3003;
@@ -47,7 +52,7 @@ const transporter = createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-    tls: {
+  tls: {
     rejectUnauthorized: false // يخلي الاتصال يتجاوز self-signed error
   }
 });
@@ -57,9 +62,9 @@ function renderEmailTemplate({ code, firstName, lastName, email }) {
   const templatePath = join(__dirname, 'tamplate', 'email.html');
   let html = readFileSync(templatePath, 'utf8');
   html = html.replace(/\{\{CODE\}\}/g, code)
-             .replace(/\{\{firstName\}\}/g, firstName || '')
-             .replace(/\{\{lastName\}\}/g, lastName || '')
-             .replace(/\{\{email\}\}/g, email || '');
+    .replace(/\{\{firstName\}\}/g, firstName || '')
+    .replace(/\{\{lastName\}\}/g, lastName || '')
+    .replace(/\{\{email\}\}/g, email || '');
   return html;
 }
 
