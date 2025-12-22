@@ -25,7 +25,7 @@ const server = createServer(app);
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: true,
     credentials: true
   }
 });
@@ -41,7 +41,7 @@ app.locals.io = io;
 
 
 app.use(cors({
-  origin: 'http://localhost:3000', // your frontend URL
+  origin: true, // Allow any origin
   credentials: true
 }));
 app.use(json());
