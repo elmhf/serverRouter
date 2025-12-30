@@ -5,7 +5,7 @@ import { uploaders } from '../utils/uploadUtils.js';
 
 const router = Router();
 
-router.post('/me', authMiddleware, getUserProfile);
+router.get('/me', authMiddleware, getUserProfile);
 router.put('/:userId', updateUserProfile);
 router.delete('/:userId', deleteOwnAccount);
 

@@ -1,5 +1,6 @@
 import { supabaseAdmin, supabaseUser } from '../../supabaseClient.js';
 import { getPatientReportsCount } from '../handlers/reportHandlers.js';
+import { addNotification } from '../../utils/notification.js';
 
 // Store Supabase realtime subscriptions
 const realtimeSubscriptions = new Map();
@@ -53,37 +54,21 @@ export const initializeRealtimeSubscriptions = (io) => {
                         });
                     }
 
-                    // فحص إذا كان oldRecord يحتوي على status
-                    if (!oldRecord.status) {
-                        console.log('⚠️ Old record missing status, fetching from database...');
-
-                        const { data: oldReport, error: oldError } = await supabaseUser
-                            .from('report_ai')
-                            .select('status')
-                            .eq('report_id', newRecord.report_id)
-                            .maybeSingle();
-
-                        if (oldError) {
-                            console.error('Error fetching old status:', oldError);
-                            return;
-                        }
-
-                        if (!oldReport) {
-                            console.log('⚠️ Old report not found, using unknown status');
-                            oldRecord.status = 'unknown';
-                        } else {
-                            oldRecord.status = oldReport.status;
-                        }
-
-                        console.log(`📊 Status changed from ${oldRecord.status} to ${newRecord.status}`);
-                    } else {
-                        if (oldRecord.status === newRecord.status) {
-                            console.log('📊 Status unchanged, skipping notification');
-                            return;
-                        }
-
-                        console.log(`📊 Status changed from ${oldRecord.status} to ${newRecord.status}`);
+                    // Get old status from cache if available
+                    let oldStatus = 'unknown';
+                    if (cachedData && cachedData.status) {
+                        oldStatus = cachedData.status;
+                        console.log(`💾 Retrieved old status from cache: ${oldStatus}`);
+                    } else if (oldRecord && oldRecord.status) {
+                        oldStatus = oldRecord.status;
                     }
+
+                    if (oldStatus === newRecord.status) {
+                        console.log(`📊 Status unchanged (${oldStatus} -> ${newRecord.status}), skipping notification`);
+                        return;
+                    }
+
+                    console.log(`📊 Status changed from ${oldStatus} to ${newRecord.status}`);
 
                     // Get patient and clinic information
                     const { data: patient, error: patientError } = await supabaseUser
@@ -99,9 +84,15 @@ export const initializeRealtimeSubscriptions = (io) => {
 
                     const clinicId = patient.clinic_id;
                     const patientName = `${patient.first_name} ${patient.last_name}`;
-                    const oldStatus = oldRecord.status || 'unknown';
 
                     const totalReports = await getPatientReportsCount(newRecord.patient_id);
+
+                    // 🆕 Construct Image URL
+                    const imagePath = `${clinicId}/${newRecord.patient_id}/${newRecord.raport_type}/${newRecord.report_id}/original.png`;
+                    const { data: publicUrlData } = supabaseUser.storage
+                        .from('reports')
+                        .getPublicUrl(imagePath);
+                    const imageUrl = publicUrlData?.publicUrl || null;
 
                     // Emit WebSocket event to clinic members
                     io.to(`clinic_${clinicId}`).emit('report_status_changed_realtime', {
@@ -121,7 +112,8 @@ export const initializeRealtimeSubscriptions = (io) => {
                             patient_id: newRecord.patient_id,
                             status: newRecord.status,
                             report_url: newRecord.report_url,
-                            data_url: newRecord.data_url
+                            data_url: newRecord.data_url,
+                            image_url: imageUrl // 🆕 Added image URL
                         }
                     });
 
@@ -143,11 +135,90 @@ export const initializeRealtimeSubscriptions = (io) => {
                             patient_id: newRecord.patient_id,
                             status: newRecord.status,
                             report_url: newRecord.report_url,
-                            data_url: newRecord.data_url
+                            data_url: newRecord.data_url,
+                            image_url: imageUrl // 🆕 Added image URL
                         }
                     });
 
                     console.log(`📊 Real-time notification sent for report ${newRecord.report_id}: ${oldStatus} → ${newRecord.status}`);
+
+                    // 🆕: Create persistence notification when report is COMPLETED or FAILED
+                    if (newRecord.status === 'completed' || newRecord.status === 'failed') {
+                        try {
+                            // 1. Get creator and treating doctors for this patient
+                            const { data: patientDetails, error: patientDetailsError } = await supabaseUser
+                                .from('patients')
+                                .select(`
+                                    created_by,
+                                    clinic_id,
+                                    first_name,
+                                    last_name,
+                                    treatments (
+                                        treating_doctor_id
+                                    )
+                                `)
+                                .eq('id', newRecord.patient_id)
+                                .single();
+
+                            if (patientDetailsError) {
+                                console.error('Error fetching patient details for notification:', patientDetailsError);
+                                return;
+                            }
+
+                            // Collect all target user IDs (creator + treating doctors)
+                            const targetUserIds = new Set();
+
+                            // Add creator
+                            if (patientDetails.created_by) {
+                                targetUserIds.add(patientDetails.created_by);
+                            }
+
+                            // Add treating doctors
+                            if (patientDetails.treatments && patientDetails.treatments.length > 0) {
+                                patientDetails.treatments.forEach(t => {
+                                    if (t.treating_doctor_id) {
+                                        targetUserIds.add(t.treating_doctor_id);
+                                    }
+                                });
+                            }
+
+                            if (targetUserIds.size === 0) {
+                                console.log('⚠️ No target users found for notification');
+                                return;
+                            }
+
+                            console.log(`🔔 Sending ${newRecord.status} notifications to ${targetUserIds.size} users`);
+
+                            // Determine message content based on status
+                            const isSuccess = newRecord.status === 'completed';
+                            const title = isSuccess ? 'Report Ready' : 'Report Failed';
+                            const message = isSuccess
+                                ? `The ${newRecord.raport_type} report for patient ${patientName} is ready now`
+                                : `The ${newRecord.raport_type} report for patient ${patientName} failed to process`;
+                            const type = isSuccess ? 'report_completed' : 'report_failed';
+
+                            // Create notifications for all targets using the utility function
+                            const notificationPromises = Array.from(targetUserIds).map(userId =>
+                                addNotification({
+                                    user_id: userId,
+                                    title: title,
+                                    message: message,
+                                    type: type,
+                                    meta_data: {
+                                        report_id: newRecord.report_id,
+                                        patient_id: newRecord.patient_id,
+                                        clinic_id: clinicId,
+                                        status: newRecord.status
+                                    }
+                                })
+                            );
+
+                            await Promise.all(notificationPromises);
+                            console.log(`✅ ${title} notifications created for users: ${Array.from(targetUserIds).join(', ')}`);
+                        } catch (notifErr) {
+                            console.error('Error creating notification:', notifErr);
+                        }
+                    }
 
                 } catch (error) {
                     console.error('Error processing realtime report status change:', error);
@@ -202,9 +273,17 @@ export const initializeRealtimeSubscriptions = (io) => {
                     const clinicId = patient.clinic_id;
                     const patientName = `${patient.first_name} ${patient.last_name}`;
 
+                    // 🆕 Construct Image URL for new report
+                    const imagePath = `${clinicId}/${newRecord.patient_id}/${newRecord.raport_type}/${newRecord.report_id}/original.png`;
+                    const { data: publicUrlData } = supabaseUser.storage
+                        .from('reports')
+                        .getPublicUrl(imagePath);
+                    const imageUrl = publicUrlData?.publicUrl || null;
+
                     // إضافة معلومات المريض والعيادة للكاش
                     reportCacheData.clinic_id = clinicId;
                     reportCacheData.patient_name = patientName;
+                    reportCacheData.image_url = imageUrl; // 🆕 Cache image URL
                     reportCache.set(newRecord.report_id, reportCacheData);
 
                     const totalReports = await getPatientReportsCount(newRecord.patient_id);
@@ -226,7 +305,8 @@ export const initializeRealtimeSubscriptions = (io) => {
                             patient_id: newRecord.patient_id,
                             status: newRecord.status,
                             report_url: newRecord.report_url,
-                            data_url: newRecord.data_url
+                            data_url: newRecord.data_url,
+                            image_url: imageUrl // 🆕 Added image URL
                         },
                         clinicId: clinicId,
                         message: `تم إنشاء تقرير ${newRecord.raport_type} جديد للمريض ${patientName}`
@@ -346,17 +426,22 @@ export const initializeRealtimeSubscriptions = (io) => {
                 }
             }
         )
-        .subscribe((status) => {
+        .subscribe((status, err) => {
             console.log('🔌 Report subscription status:', status);
 
             if (status === 'SUBSCRIBED') {
-                console.log('✅ Report realtime subscription active');
+                console.log('✅ Report realtime subscription active for table: report_ai');
             } else if (status === 'CHANNEL_ERROR') {
-                console.error('❌ Report realtime subscription error');
+                console.error('❌ Report realtime subscription error:', err);
+                // Retry logic
                 setTimeout(() => {
                     console.log('🔄 Retrying subscription...');
                     initializeRealtimeSubscriptions(io);
                 }, 5000);
+            } else if (status === 'TIMED_OUT') {
+                console.error('❌ Report realtime subscription timed out');
+            } else if (status === 'CLOSED') {
+                console.log('⚠️ Report realtime subscription closed');
             }
         });
 

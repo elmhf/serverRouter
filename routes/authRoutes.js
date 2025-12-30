@@ -18,7 +18,11 @@ import {
   verifyPassword,
   sendEmailOtpCode,
   initiateAccountDeletion,
-  confirmAccountDeletion
+  confirmAccountDeletion,
+  logoutFromAllDevices,
+  handleGoogleCallback,
+  getGoogleAuthUrl,
+  completeGoogleSignup
 } from '../controllers/authController.js';
 
 import validateSignupInput from '../middlewares/validateSignupInput.js';
@@ -47,6 +51,10 @@ router.post('/resend-verification-code', resendVerificationCode);
 router.post('/login', login);
 router.post('/login-2fa', login2FA);
 router.post('/logout', logout)
+router.post('/logout-all', authMiddleware, logoutFromAllDevices); // New logout all endpoint
+router.post('/google-callback', authMiddleware, handleGoogleCallback); // New Google sync endpoint
+router.get('/google-url', getGoogleAuthUrl); // New: Get Google Auth URL
+router.post('/google-complete-signup', completeGoogleSignup); // New: Complete signup with password
 router.post('/refresh-token', refreshToken);
 router.post('/verification-status', verificationStatus);
 router.post('/send-email-update-code', authMiddleware, sendEmailUpdateCode);

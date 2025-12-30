@@ -1,4 +1,5 @@
-import { supabaseUser } from '../supabaseClient.js';
+import { supabaseUser, supabaseAdmin } from '../supabaseClient.js';
+import jwt from 'jsonwebtoken';
 
 // Token Expiration Configuration
 const TOKEN_CONFIG = {
@@ -7,7 +8,6 @@ const TOKEN_CONFIG = {
 };
 
 export async function authMiddleware(req, res, next) {
-  console.log('fetch notification ---------------')
 
   // قراءة الـ tokens من الـ HTTP-only cookies فقط
   let accessToken = req.cookies?.access_token;
@@ -30,13 +30,68 @@ export async function authMiddleware(req, res, next) {
     const { data: userData, error: userError } = await supabaseUser.auth.getUser(accessToken);
 
     if (!userError && userData && userData.user) {
-      // الـ token صالح
+      // Check for global logout
+      const metadata = userData.user.user_metadata || {};
+      if (metadata.global_logout_at) {
+        const logoutTime = new Date(metadata.global_logout_at).getTime();
+        try {
+          // Decode token to get 'iat' (Issued At)
+          const payload = JSON.parse(atob(accessToken.split('.')[1]));
+          const tokenIssuedAt = payload.iat * 1000; // Convert to ms
+
+          // If the token was issued BEFORE the last global logout, it's invalid
+          if (tokenIssuedAt < logoutTime) {
+            console.warn('Token invalidated by global logout');
+            clearAuthCookies(res);
+            return res.status(401).json({
+              error: 'Session expired (Global Logout)',
+              code: 'GLOBAL_LOGOUT'
+            });
+          }
+        } catch (e) {
+          // Ignore parsing error for supabase tokens if needed, but it should work
+        }
+      }
+
+      // Token is valid
       req.user = {
         id: userData.user.id,
         email: userData.user.email,
         ...userData.user.user_metadata
       };
+
+      // ✅ Check if user is BANNED (exists in user_bans table)
+      const { data: banRecord, error: banError } = await supabaseAdmin
+        .from('user_bans')
+        .select('id')
+        .eq('user_id', userData.user.id)
+        .maybeSingle();
+
+      if (!banError && banRecord) {
+        console.warn(`Blocked access for banned user: ${userData.user.email}`);
+        clearAuthCookies(res);
+        return res.status(403).json({
+          error: 'Your account has been banned. Please contact support.',
+          code: 'USER_BANNED'
+        });
+      }
+
       return next();
+    }
+
+    // ✅ Fallback: Try verifying as Custom Admin Token
+    try {
+      const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'secret');
+      if (decoded.role === 'admin' && decoded.type === 'admin_token') {
+        req.user = {
+          id: decoded.id,
+          email: decoded.email,
+          role: 'admin'
+        };
+        return next();
+      }
+    } catch (err) {
+      // Just ignore invalid custom token, proceed to refresh logic
     }
 
     // إذا كان الـ access token غير صالح أو منتهي الصلاحية

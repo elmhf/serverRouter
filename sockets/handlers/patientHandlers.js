@@ -1,3 +1,6 @@
+import { supabaseUser } from '../../supabaseClient.js';
+import { isClinicCreator } from '../../utils/permissionUtils.js';
+
 /**
  * Handle patient selection
  */
@@ -5,6 +8,34 @@ export const handleSelectPatient = (socket, connectedUsers) => {
     socket.on('select_patient', async (data) => {
         try {
             const { userId, clinicId, patientId } = data;
+            console.warn(`⛔  ${userId, clinicId, patientId}`);            // 🆕 Security Check: Verify Role
+            // 1. Check if Creator
+            const isCreator = await isClinicCreator(userId, clinicId);
+            let hasAccess = isCreator;
+
+            // 2. If not creator, check role (admin or full_access)
+            if (!hasAccess) {
+                const { data: userRole, error } = await supabaseUser
+                    .from('user_clinic_roles')
+                    .select('role')
+                    .eq('user_id', userId)
+                    .eq('clinic_id', clinicId)
+                    .single();
+
+                if (!error && userRole) {
+                    if (['admin', 'full_access'].includes(userRole.role)) {
+                        hasAccess = true;
+                    }
+                }
+            }
+
+            if (!hasAccess) {
+                console.warn(`⛔ User ${userId} attempted to access patient ${patientId} without permission.`);
+                socket.emit('patient_selection_error', {
+                    error: 'Access Denied: You do not have permission to view this patient (Requires: Owner, Admin, or Full Access)'
+                });
+                return;
+            }
 
             // Update user's current patient
             const userInfo = connectedUsers.get(socket.id);
@@ -15,6 +46,8 @@ export const handleSelectPatient = (socket, connectedUsers) => {
 
             // Join patient-specific room
             socket.join(`patient_${patientId}`);
+            // Also join the clinic room to receive clinic-wide updates (like updated_patient)
+            socket.join(`clinic_${clinicId}`);
 
             console.log(`👤 User ${userId} selected patient ${patientId}`);
 

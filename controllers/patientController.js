@@ -670,19 +670,6 @@ export const updatePatient = async (req, res) => {
       .eq('user_id', userId)
       .single();
 
-    // 7. Send notification to clinic creator and full_access users about patient update
-    if (clinicInfo && doctorInfo) {
-      await notifyPatientUpdate({
-        patient_id: patientId,
-        clinic_id: existingPatient.clinic_id,
-        patient_first_name: updatedPatient.first_name,
-        patient_last_name: updatedPatient.last_name,
-        clinic_name: clinicInfo.clinic_name,
-        updated_by: userId,
-        doctor_first_name: doctorInfo.firstName,
-        doctor_last_name: doctorInfo.lastName
-      });
-    }
 
     // 8. Send notification to newly assigned treating doctors
     if (newlyAssignedDoctorIds.length > 0 && clinicInfo) {
@@ -697,6 +684,15 @@ export const updatePatient = async (req, res) => {
       });
     }
 
+
+    // 9. Emit realtime event for patient update (as requested: "new_patient" event)
+    const io = req.app.locals.io;
+    if (io) {
+      io.to(`clinic_${existingPatient.clinic_id}`).emit('updated_patient', updatedPatient);
+      console.log(`📡 Emitted 'updated_patient' event for updated patient ${patientId}`);
+    } else {
+      console.warn('⚠️ WebSocket io instance not found in app.locals');
+    }
 
     res.json({
       message: 'Patient updated successfully',
@@ -797,7 +793,39 @@ export const deletePatient = async (req, res) => {
       });
     }
 
-    // 3. Delete patient
+    // 3. Delete all patient reports from Storage
+    const { data: patientReports } = await supabaseUser
+      .from('report_ai')
+      .select('report_id, raport_type')
+      .eq('patient_id', patientId);
+
+    if (patientReports && patientReports.length > 0) {
+      console.log(`🗑️ Found ${patientReports.length} reports to clean up from storage`);
+
+      for (const report of patientReports) {
+        const reportPath = `${existingPatient.clinic_id}/${patientId}/${report.raport_type}/${report.report_id}`;
+
+        // List all files in this report's folder
+        const { data: files, error: listError } = await supabaseUser.storage
+          .from('reports')
+          .list(reportPath);
+
+        if (files && files.length > 0) {
+          const filesToRemove = files.map(f => `${reportPath}/${f.name}`);
+          const { error: removeError } = await supabaseUser.storage
+            .from('reports')
+            .remove(filesToRemove);
+
+          if (removeError) {
+            console.error(`❌ Failed to remove files for report ${report.report_id}:`, removeError);
+          } else {
+            console.log(`✅ Cleaned up storage for report ${report.report_id}`);
+          }
+        }
+      }
+    }
+
+    // 4. Delete patient (Cascade will handle DB reports)
     const { error: deleteError } = await supabaseUser
       .from('patients')
       .delete()

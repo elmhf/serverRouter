@@ -615,6 +615,26 @@ export async function login(req, res) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    // Check if user is banned
+    const { data: banRecord } = await supabaseAdmin
+      .from('user_bans')
+      .select('ban_type, ban_description, ban_end')
+      .eq('user_id', data.user.id)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (banRecord) {
+      console.warn(`[login] Blocked login for banned user: ${email}`);
+      return res.status(403).json({
+        error: 'Your account has been banned.',
+        code: 'USER_BANNED',
+        details: {
+          type: banRecord.ban_type,
+          end_date: banRecord.ban_end
+        }
+      });
+    }
+
     // Check 2FA status
     const { data: security } = await supabaseAdmin
       .from('user_security')
@@ -806,6 +826,261 @@ export async function logout(req, res) {
   } catch (error) {
     console.error('[logout] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// ===== تسجيل الخروج من جميع الأجهزة =====
+export async function logoutFromAllDevices(req, res) {
+  console.log(`[logoutFromAllDevices] Request received`);
+  const userId = req.user?.id;
+  const userEmail = req.user?.email;
+  const { password } = req.body;
+
+  if (!userId || !userEmail) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!password) {
+    return res.status(400).json({ error: 'Password is required to confirm this action' });
+  }
+
+  try {
+    // 1. Verify password by attempting to sign in
+    const { error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+      email: userEmail,
+      password: password
+    });
+
+    if (signInError) {
+      console.warn(`[logoutFromAllDevices] Password verification failed for user ${userEmail}`);
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+
+    // 2. Invalidate all tokens by updating user metadata
+    // We explicitly set the time slightly in the past (-1s) to avoid race conditions with the new token we are about to generate
+    const logoutTime = new Date();
+
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        global_logout_at: logoutTime.toISOString()
+      }
+    });
+
+    if (updateError) {
+      console.error('[logoutFromAllDevices] Supabase update error:', updateError);
+      return res.status(500).json({ error: 'Failed to sign out from all devices' });
+    }
+
+    // 3. Re-authenticate to get a NEW valid token for the current device
+    // This token will have an 'iat' > global_logout_at, so it will pass the middleware check
+    const { data: newSessionData, error: reLoginError } = await supabaseAdmin.auth.signInWithPassword({
+      email: userEmail,
+      password: password
+    });
+
+    if (reLoginError || !newSessionData.session) {
+      console.error('[logoutFromAllDevices] Re-login failed:', reLoginError);
+      // Fallback: if re-login fails, at least we logged everyone out.
+      res.clearCookie('access_token', COOKIE_OPTIONS);
+      res.clearCookie('refresh_token', COOKIE_OPTIONS);
+      return res.status(200).json({ message: 'Logged out from all devices. Please login again.' });
+    }
+
+    // 4. Set new cookies for the current device
+    res.cookie('access_token', newSessionData.session.access_token, {
+      ...COOKIE_OPTIONS,
+      maxAge: ACCESS_TOKEN_EXPIRES
+    });
+
+    res.cookie('refresh_token', newSessionData.session.refresh_token, {
+      ...COOKIE_OPTIONS,
+      maxAge: REFRESH_TOKEN_EXPIRES
+    });
+
+    console.log(`[logoutFromAllDevices] User ${userId} refreshed session after global logout`);
+    res.status(200).json({
+      message: 'Logged out from all other devices successfully',
+      user: {
+        id: newSessionData.user.id,
+        email: newSessionData.user.email
+      }
+    });
+
+  } catch (error) {
+    console.error('[logoutFromAllDevices] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// ===== معالجة تسجيل الدخول عبر Google =====
+export async function handleGoogleCallback(req, res) {
+  console.log('[handleGoogleCallback] Processing Google sign-in sync');
+  const user = req.user; // From authMiddleware
+
+  if (!user) {
+    console.log('[handleGoogleCallback] No user session found');
+    return res.status(401).json({ error: 'Unauthorized: No user session found' });
+  }
+
+  try {
+    // 1. Check if user profile exists in public.user
+    const { data: existingProfile, error: fetchError } = await supabaseAdmin
+      .from('user')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('[handleGoogleCallback] Error fetching profile:', fetchError);
+      return res.status(500).json({ error: 'Database error checking profile' });
+    }
+    console.log('[handleGoogleCallback] Profile fetched successfully');
+
+    // 2. Checking if profile exists in `public.user`
+    // User requested: If in user table -> Complted. If not -> Require Signup.
+    if (existingProfile) {
+      console.log(`[handleGoogleCallback] Profile exists for ${user.email} -> Login allowed.`);
+
+      // =========================================================
+      // 🆕 SET HTTP-ONLY COOKIES (Secure Session) for Existing Users
+      // =========================================================
+
+      // 1. Extract Access Token from Header (Bearer ...)
+      const authHeader = req.headers.authorization;
+      const accessToken = authHeader && authHeader.split(' ')[1];
+
+      // 2. Extract Refresh Token from Body
+      const { refreshToken } = req.body;
+      const effectiveRefreshToken = refreshToken || req.body.refresh_token;
+
+      if (accessToken) res.cookie('access_token', accessToken, { ...COOKIE_OPTIONS, maxAge: ACCESS_TOKEN_EXPIRES });
+      if (effectiveRefreshToken) res.cookie('refresh_token', effectiveRefreshToken, { ...COOKIE_OPTIONS, maxAge: REFRESH_TOKEN_EXPIRES });
+
+      // Determine name for response
+      const rFirstName = user.first_name || user.user_metadata?.first_name || 'User';
+      const rLastName = user.last_name || user.user_metadata?.last_name || '';
+
+      return res.status(200).json({
+        message: 'Google login synced & session cookies set',
+        requireSignup: false,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: rFirstName,
+          lastName: rLastName
+        }
+      });
+
+    } else {
+      // 3. If profile does NOT exist -> Require Signup Completion
+      console.log(`[handleGoogleCallback] User ${user.email} NOT found in DB -> Require completion`);
+
+      // Extract basic info
+      const metadata = user.user_metadata || {};
+      const fullName = metadata.full_name || metadata.name || '';
+      const nameParts = fullName.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+      const avatarUrl = metadata.avatar_url || metadata.picture;
+
+      // Generate a temporary REGISTRATION TOKEN
+      const registrationToken = encryptTempToken({
+        email: user.email,
+        googleId: user.id,
+        firstName: existingProfile ? existingProfile.firstName : firstName,
+        lastName: existingProfile ? existingProfile.lastName : lastName,
+        avatarUrl,
+        verified: true,
+        timestamp: Date.now()
+      });
+
+      return res.status(200).json({
+        message: 'Google verification successful. Please complete registration.',
+        requireSignup: true,
+        signupData: {
+          email: user.email,
+          firstName: existingProfile ? existingProfile.firstName : firstName,
+          lastName: existingProfile ? existingProfile.lastName : lastName,
+          registrationToken // Frontend sends this back with password
+        }
+      });
+    }
+
+    // =========================================================
+    // 🆕 SET HTTP-ONLY COOKIES (Secure Session)
+    // =========================================================
+
+    // 1. Extract Access Token from Header (Bearer ...)
+    const authHeader = req.headers.authorization;
+    const accessToken = authHeader && authHeader.split(' ')[1];
+
+    // 2. Extract Refresh Token from Body (Frontend must send it!)
+    const { refreshToken } = req.body;
+    // Support snake_case too just in case
+    const effectiveRefreshToken = refreshToken || req.body.refresh_token;
+
+    console.log(`[handleGoogleCallback] Setting cookies - AccessToken: ${!!accessToken}, RefreshToken: ${!!effectiveRefreshToken}`);
+
+    if (accessToken) {
+      res.cookie('access_token', accessToken, {
+        ...COOKIE_OPTIONS,
+        maxAge: ACCESS_TOKEN_EXPIRES
+      });
+    }
+
+    if (effectiveRefreshToken) {
+      res.cookie('refresh_token', effectiveRefreshToken, {
+        ...COOKIE_OPTIONS,
+        maxAge: REFRESH_TOKEN_EXPIRES
+      });
+    }
+
+    // Determine name for response
+    const rFirstName = user.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'User';
+    const rLastName = user.last_name || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '';
+
+    res.status(200).json({
+      message: 'Google login synced & session cookies set',
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: rFirstName,
+        lastName: rLastName
+      }
+    });
+
+  } catch (error) {
+    console.error('[handleGoogleCallback] Error:', error);
+    res.status(500).json({ error: 'Internal server error during sync' });
+  }
+}
+
+// ===== توليد رابط تسجيل الدخول (API Only) =====
+export async function getGoogleAuthUrl(req, res) {
+  console.log('[getGoogleAuthUrl] Generating Google OAuth URL');
+  try {
+    const { data, error } = await supabaseUser.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: req.headers.origin + '/auth/redirect', // The page that parses hash
+        skipBrowserRedirect: true,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+
+    if (error) {
+      console.error('[getGoogleAuthUrl] Supabase Error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ url: data.url });
+
+  } catch (error) {
+    console.error('[getGoogleAuthUrl] Error:', error);
+    res.status(500).json({ error: 'Failed to generate auth URL' });
   }
 }
 
@@ -1126,12 +1401,13 @@ export async function sendPasswordResetOtp(req, res) {
   try {
     const { email } = req.body;
     const { data: userData, error: userError } = await supabaseAdmin.from('user').select('user_id').eq('email', email).single();
+    console.log("userData", userData, "userError", userError);
     if (userError || !userData) return res.status(404).json({ error: 'User not found' });
 
     const code = Math.floor(100000 + Math.random() * 900000);
     const expires = Date.now() + 5 * 60 * 1000;
     await sendEmail({ to: email, subject: 'Password Reset OTP', text: `Your code: ${code}` });
-
+console.log("code", code, "expires", expires);
     const { data: { user }, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userData.user_id);
     if (getUserError || !user) return res.status(404).json({ error: 'User not found' });
     const meta = user.user_metadata || {};
@@ -1375,6 +1651,120 @@ export async function confirmAccountDeletion(req, res) {
 
   } catch (error) {
     console.error('[confirmAccountDeletion] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// ===== إكمال التسجيل عبر Google (New Endpoint) =====
+export async function completeGoogleSignup(req, res) {
+  const { registrationToken, password, firstName, lastName, phone } = req.body;
+  console.log('[completeGoogleSignup] Request received', req.body);
+
+  if (!registrationToken || !password) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    // 1. Decrypt and Verify Token
+    let tokenData;
+    try {
+      tokenData = decryptTempToken(registrationToken);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid or expired registration session' });
+    }
+
+    // Verify timestamp (e.g. valid for 30 mins)
+    if (Date.now() - tokenData.timestamp > 30 * 60 * 1000) {
+      return res.status(400).json({ error: 'Session expired. Please try Google login again.' });
+    }
+
+    const email = tokenData.email;
+    const googleId = tokenData.googleId;
+
+    console.log(`[completeGoogleSignup] Finalizing signup for ${email}`);
+
+    // 2. Create User Profile
+    const finalFirstName = firstName || tokenData.firstName || 'User';
+    const finalLastName = lastName || tokenData.lastName || '';
+
+    // Update password for the existing user (Google user)
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(googleId, {
+      password: password,
+      user_metadata: {
+        first_name: finalFirstName,
+        last_name: finalLastName,
+        phone: phone || null,
+        google_setup_complete: true // MARK AS COMPLETE
+      },
+      // IMPORTANT: Explicitly set email to auto-confirm without sending email to user
+      email_confirm: true
+    });
+
+    if (updateError) {
+      console.error('[completeGoogleSignup] Error updating auth user:', updateError);
+      return res.status(500).json({ error: 'Failed to set password' });
+    }
+
+    // 3. Create or Update User Profile in `public.user` table
+    const userProfile = {
+      user_id: googleId,
+      email: email.toLowerCase(),
+      firstName: finalFirstName,
+      lastName: finalLastName,
+      phone: phone || null,
+      email_verified: true,
+      password: password,
+      created_at: new Date().toISOString() // upsert works with existing created_at usually or we exclude it on match
+    };
+
+    // Use upsert to handle both new users and existing users (force completion flow)
+    const { error: insertError } = await supabaseAdmin
+      .from('user')
+      .upsert([userProfile], { onConflict: 'user_id' }); // Use user_id as conflict target
+
+    if (insertError) {
+      console.error('[completeGoogleSignup] Error creating/updating profile:', insertError);
+      return res.status(500).json({ error: 'Failed to save user profile' });
+    }
+
+    // 4. Create Security Entry (Upsert or Ignore if exists)
+    const { error: secError } = await supabaseAdmin
+      .from('user_security')
+      .upsert([{ user_id: googleId }], { onConflict: 'user_id', ignoreDuplicates: true });
+
+    if (secError) {
+      console.error('[completeGoogleSignup] Security entry error (non-fatal):', secError);
+    }
+
+    // 5. Auto-Login (Generate Session)
+    const { data: loginData, error: loginError } = await supabaseUser.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (loginError || !loginData.session) {
+      return res.status(201).json({
+        message: 'Account created successfully. Please login.',
+        details: 'Login required'
+      });
+    }
+
+    // Set Cookies
+    res.cookie('access_token', loginData.session.access_token, { ...COOKIE_OPTIONS, maxAge: ACCESS_TOKEN_EXPIRES });
+    res.cookie('refresh_token', loginData.session.refresh_token, { ...COOKIE_OPTIONS, maxAge: REFRESH_TOKEN_EXPIRES });
+
+    res.status(200).json({
+      message: 'Signup completed and logged in',
+      user: {
+        id: googleId,
+        email,
+        firstName: finalFirstName,
+        lastName: finalLastName
+      }
+    });
+
+  } catch (error) {
+    console.error('[completeGoogleSignup] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

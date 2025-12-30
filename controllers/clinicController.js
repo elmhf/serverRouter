@@ -81,16 +81,79 @@ export const deleteClinic = async (req, res) => {
   const userId = req.user?.id;
 
   try {
+    // 1. Verify ownership/permission
+    const { data: clinic, error: clinicError } = await supabaseUser
+      .from('clinics')
+      .select('created_by, logo_url, stamp_url')
+      .eq('id', clinicId)
+      .single();
+
+    if (clinicError || !clinic) {
+      return res.status(404).json({ error: 'Clinic not found' });
+    }
+
+    if (clinic.created_by !== userId) {
+      return res.status(403).json({ error: 'Only the clinic creator can delete the clinic' });
+    }
+
+    // 2. Clean up Clinic Assets (Logo & Stamp)
+    if (clinic.logo_url) {
+      const fileName = clinic.logo_url.split('/').pop();
+      await supabaseAdmin.storage.from('cliniclogo').remove([fileName]);
+    }
+    if (clinic.stamp_url) {
+      const fileName = clinic.stamp_url.split('/').pop();
+      await supabaseAdmin.storage.from('clinicstamp').remove([fileName]);
+    }
+
+    // 3. Clean up All Reports Storage
+    // Find all patients in this clinic
+    const { data: patients } = await supabaseUser
+      .from('patients')
+      .select('id')
+      .eq('clinic_id', clinicId);
+
+    if (patients && patients.length > 0) {
+      const patientIds = patients.map(p => p.id);
+
+      // Find all reports for these patients
+      const { data: reports } = await supabaseUser
+        .from('report_ai')
+        .select('report_id, raport_type, patient_id')
+        .in('patient_id', patientIds);
+
+      if (reports && reports.length > 0) {
+        console.log(`🗑️ Cleaning up storage for ${reports.length} reports in deleted clinic`);
+
+        for (const report of reports) {
+          const reportPath = `${clinicId}/${report.patient_id}/${report.raport_type}/${report.report_id}`;
+
+          // List files in report folder
+          const { data: files } = await supabaseUser.storage
+            .from('reports')
+            .list(reportPath);
+
+          if (files && files.length > 0) {
+            const filesToRemove = files.map(f => `${reportPath}/${f.name}`);
+            await supabaseUser.storage
+              .from('reports')
+              .remove(filesToRemove);
+          }
+        }
+      }
+    }
+
+    // 4. Delete Clinic (Cascade will handle patients, reports, roles, etc.)
     const { error } = await supabaseUser
       .from('clinics')
       .delete()
-      .eq('id', clinicId)
-      .eq('created_by', userId);
+      .eq('id', clinicId);
 
     if (error) throw error;
 
-    res.status(200).json({ message: 'Clinic deleted successfully' });
+    res.status(200).json({ message: 'Clinic and all associated data deleted successfully' });
   } catch (err) {
+    console.error('Delete clinic error:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -554,8 +617,6 @@ export const getClinicMembers = async (req, res) => {
 
     // 2. Check if user has permission to view all users
     const canViewAllUsers = await hasPermission(userId, clinicId, 'view_all_users');
-    console.log("canViewAllUsers", canViewAllUsers);
-    console.log("isCreator", isCreator);
     if (!isCreator && !canViewAllUsers) {
       return res.status(403).json({
         error: 'You do not have permission to view members for this clinic'

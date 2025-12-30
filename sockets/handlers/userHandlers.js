@@ -7,10 +7,15 @@ export const handleUserLogin = (socket, connectedUsers) => {
             const { userId, clinicId } = data;
 
             // Store user connection info
+            const userAgent = socket.handshake.headers['user-agent'] || 'Unknown Device';
+            const ip = socket.handshake.address;
+
             connectedUsers.set(socket.id, {
                 userId,
                 clinicId,
                 socketId: socket.id,
+                userAgent: userAgent,
+                ip: ip,
                 connectedAt: new Date()
             });
 
