@@ -912,8 +912,41 @@ export async function logoutFromAllDevices(req, res) {
   }
 }
 
+// ===== Helper: Check if Google Integration is Enabled =====
+async function checkGoogleIntegrationEnabled() {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('config_Integrations')
+      .select('is_Integration')
+      .ilike('Integrations', 'Google')
+      .maybeSingle();
+
+    if (error) {
+      console.error('[checkGoogleIntegrationEnabled] Error fetching config:', error);
+      return false;
+    }
+
+    if (!data) {
+      console.log('[checkGoogleIntegrationEnabled] No Google integration record found.');
+      return false;
+    }
+
+    return data.is_Integration === true;
+
+  } catch (err) {
+    console.error('[checkGoogleIntegrationEnabled] Unexpected error:', err);
+    return false;
+  }
+}
+
 // ===== معالجة تسجيل الدخول عبر Google =====
 export async function handleGoogleCallback(req, res) {
+  // 1. Check Integration
+  const isEnabled = await checkGoogleIntegrationEnabled();
+  if (!isEnabled) {
+    return res.status(403).json({ error: 'Procéssus de connexion Google n\'est pas disponible pour le moment.' });
+  }
+
   console.log('[handleGoogleCallback] Processing Google sign-in sync');
   const user = req.user; // From authMiddleware
 
@@ -1057,6 +1090,12 @@ export async function handleGoogleCallback(req, res) {
 
 // ===== توليد رابط تسجيل الدخول (API Only) =====
 export async function getGoogleAuthUrl(req, res) {
+  // 1. Check Integration
+  const isEnabled = await checkGoogleIntegrationEnabled();
+  if (!isEnabled) {
+    return res.status(403).json({ error: 'Procéssus de connexion Google n\'est pas disponible pour le moment.' });
+  }
+
   console.log('[getGoogleAuthUrl] Generating Google OAuth URL');
   try {
     const { data, error } = await supabaseUser.auth.signInWithOAuth({
@@ -1407,7 +1446,7 @@ export async function sendPasswordResetOtp(req, res) {
     const code = Math.floor(100000 + Math.random() * 900000);
     const expires = Date.now() + 5 * 60 * 1000;
     await sendEmail({ to: email, subject: 'Password Reset OTP', text: `Your code: ${code}` });
-console.log("code", code, "expires", expires);
+    console.log("code", code, "expires", expires);
     const { data: { user }, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userData.user_id);
     if (getUserError || !user) return res.status(404).json({ error: 'User not found' });
     const meta = user.user_metadata || {};
@@ -1657,6 +1696,12 @@ export async function confirmAccountDeletion(req, res) {
 
 // ===== إكمال التسجيل عبر Google (New Endpoint) =====
 export async function completeGoogleSignup(req, res) {
+  // 1. Check Integration
+  const isEnabled = await checkGoogleIntegrationEnabled();
+  if (!isEnabled) {
+    return res.status(403).json({ error: 'Procéssus de connexion Google n\'est pas disponible pour le moment.' });
+  }
+
   const { registrationToken, password, firstName, lastName, phone } = req.body;
   console.log('[completeGoogleSignup] Request received', req.body);
 

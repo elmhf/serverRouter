@@ -1,4 +1,4 @@
-import { getAllUsers, promoteToAdmin, deleteUser, banUser, unbanUser, getAllClinics, getAllReports, loginAdmin, logoutAdmin, removeUserFromClinic, updateUserRoleInClinic, updateUser, addUser, updateClinic, deleteClinic, createClinic, getClinicMembers, addUserToClinic, deleteReport, getAllPatients, deletePatient, updatePatient, getPatientDoctors, addDoctorToPatient, removeDoctorFromPatient, createPatient, getDashboardStats, getAdminProfile, updateAdminProfile, updateAdminPassword, getIncidentReports, getAppSettings, updateAppSettings, addAppSetting, deleteAppSetting } from '../controllers/adminController.js';
+import { getAllUsers, promoteToAdmin, deleteUser, banUser, unbanUser, getAllClinics, getAllReports, loginAdmin, logoutAdmin, removeUserFromClinic, updateUserRoleInClinic, updateUser, addUser, updateClinic, deleteClinic, createClinic, getClinicMembers, addUserToClinic, deleteReport, getAllPatients, deletePatient, updatePatient, getPatientDoctors, addDoctorToPatient, removeDoctorFromPatient, createPatient, getDashboardStats, getAdminProfile, updateAdminProfile, updateAdminPassword, getIncidentReports, updateIncidentReport, getAppSettings, updateAppSettings, addAppSetting, deleteAppSetting, getAllIntegrations, addIntegration, updateIntegration, deleteIntegration } from '../controllers/adminController.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { adminAuthMiddleware } from '../middleware/adminAuth.js';
 import { Router } from 'express';
@@ -13,6 +13,7 @@ router.put('/system-config', adminAuthMiddleware, updateAppSettings);
 router.post('/system-config', adminAuthMiddleware, addAppSetting);
 router.delete('/system-config/:key', adminAuthMiddleware, deleteAppSetting);
 router.get('/incident-reports', adminAuthMiddleware, getIncidentReports);
+router.put('/incident-report/update', adminAuthMiddleware, updateIncidentReport);
 router.post('/login', loginAdmin);
 router.post('/logout', logoutAdmin);
 
@@ -41,5 +42,10 @@ router.post('/patient/add-doctor', adminAuthMiddleware, addDoctorToPatient);
 router.post('/patient/remove-doctor', adminAuthMiddleware, removeDoctorFromPatient);
 router.post('/patient/add', adminAuthMiddleware, createPatient);
 router.get('/dashboard-stats', adminAuthMiddleware, getDashboardStats);
+
+router.get('/integrations', adminAuthMiddleware, getAllIntegrations);
+router.post('/integration/add', adminAuthMiddleware, addIntegration);
+router.put('/integration/update', adminAuthMiddleware, updateIntegration);
+router.delete('/integration/:id', adminAuthMiddleware, deleteIntegration);
 
 export default router; 

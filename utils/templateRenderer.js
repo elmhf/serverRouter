@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export function renderEmailTemplate({ code, firstName, lastName, email, templateName = 'email.html' }) {
-  const templatePath = path.join(__dirname, '..', 'auth', 'tamplate', templateName);
+  const templatePath = path.join(__dirname, '..', 'templates', 'emails', templateName);
 
   if (!fs.existsSync(templatePath)) {
     console.error(`Template not found: ${templatePath}`);

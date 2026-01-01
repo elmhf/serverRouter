@@ -192,6 +192,8 @@ export const updateAppSettings = async (req, res) => {
         .eq('key', key);
 
       if (error) throw error;
+
+
     } else {
       // Batch value update (Standard Save)
       // Note: 'updates' currently contains the settings key-value pairs.
@@ -205,6 +207,8 @@ export const updateAppSettings = async (req, res) => {
           .eq('key', key);
       });
       await Promise.all(promises);
+
+
     }
 
     res.json({ message: 'Settings updated successfully' });
@@ -803,6 +807,80 @@ export const updateClinic = async (req, res) => {
   }
 };
 
+// ✅ جلب جميع التكاملات
+export const getAllIntegrations = async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('config_Integrations')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('getAllIntegrations error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ✅ إضافة تكامل جديد
+export const addIntegration = async (req, res) => {
+  try {
+    const { Integrations, deiscription, logo_Integration } = req.body;
+    const { data, error } = await supabaseAdmin
+      .from('config_Integrations')
+      .insert([{ Integrations, deiscription, logo_Integration, is_Integration: true }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('addIntegration error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ✅ تحديث تفاصيل التكامل
+export const updateIntegration = async (req, res) => {
+  try {
+    const { id, ...updates } = req.body;
+
+    // Filter out undefined values
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, v]) => v !== undefined)
+    );
+
+    const { error } = await supabaseAdmin
+      .from('config_Integrations')
+      .update(cleanUpdates)
+      .eq('Integrations_id', id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    console.error('updateIntegration error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ✅ حذف تكامل
+export const deleteIntegration = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabaseAdmin
+      .from('config_Integrations')
+      .delete()
+      .eq('Integrations_id', id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    console.error('deleteIntegration error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ✅ حذف العيادة
 export const deleteClinic = async (req, res) => {
   const { clinicId } = req.params;
@@ -1363,13 +1441,11 @@ export const getIncidentReports = async (req, res) => {
 
     let query = supabaseAdmin
       .from('incident_reports')
-      .select('*, user:user_id(email, firstName, lastName), clinic:clinic_id(clinic_name)', { count: 'exact' });
+      .select('*, user:user_id(email, firstName, lastName, profilePhotoUrl), clinic:clinic_id(clinic_name)', { count: 'exact' });
 
-    if (from || to) {
-      const rangeFrom = parseInt(from) || 0;
-      const rangeTo = parseInt(to) || 9;
-      query = query.range(rangeFrom, rangeTo);
-    }
+    const rangeFrom = parseInt(from) || 0;
+    const rangeTo = parseInt(to) || 9;
+    query = query.range(rangeFrom, rangeTo);
 
     query = query.order('created_at', { ascending: false });
 
@@ -1380,6 +1456,40 @@ export const getIncidentReports = async (req, res) => {
     res.json({ data, count });
   } catch (err) {
     console.error('getIncidentReports error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ✅ تحديث حالة تقرير الحادث
+export const updateIncidentReport = async (req, res) => {
+  const { reportId, status } = req.body;
+
+  if (!reportId || !status) {
+    return res.status(400).json({ error: 'Report ID and Status are required' });
+  }
+
+  try {
+    const updates = { status };
+
+    // Automatically set completed_at based on status
+    if (['resolved', 'closed'].includes(status.toLowerCase())) {
+      updates.completed_at = new Date();
+    } else {
+      updates.completed_at = null;
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('incident_reports')
+      .update(updates)
+      .eq('id', reportId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ message: 'Report status updated successfully', report: data });
+  } catch (err) {
+    console.error('updateIncidentReport error:', err);
     res.status(500).json({ error: err.message });
   }
 };

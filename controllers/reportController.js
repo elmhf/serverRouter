@@ -5,10 +5,28 @@ import fs from 'fs';
 import FormData from 'form-data';
 import fetch from 'node-fetch';
 
-// Flask API configuration
-const FLASK_API_URL = 'http://localhost:5030'; // Update with your Flask server URL
-const cbct_report_generated = `${FLASK_API_URL}/cbct-report-generated`;
-const pano_report_generated = `${FLASK_API_URL}/pano-report-generated`;
+// Helper function to get AI Server URL from app settings
+const getAiServerUrl = async () => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'SERVER_AI_URL')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching AI Server URL:', error);
+      return 'http://localhost:5030'; // Default fallback
+    }
+
+    return data?.value || 'http://localhost:5030';
+  } catch (err) {
+    console.error('Unexpected error fetching AI Server URL:', err);
+    return 'http://localhost:5030';
+  }
+};
+
+
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -83,8 +101,13 @@ const callFlaskUploadAPI = async (filePath, clinicId, patientId, reportType, rep
     formData.append('report_type', reportType.toLowerCase());
     formData.append('report_id', reportId);
 
+    // Get AI Server URL
+    const flaskBaseUrl = await getAiServerUrl();
+
     // Determine which Flask endpoint to use based on report type
-    const flaskEndpoint = reportType.toLowerCase() === 'pano' ? pano_report_generated : cbct_report_generated;
+    const flaskEndpoint = reportType.toLowerCase() === 'pano'
+      ? `${flaskBaseUrl}/pano-report-generated`
+      : `${flaskBaseUrl}/cbct-report-generated`;
     console.log('Flask endpoint:', flaskEndpoint);
 
     // Make request to Flask API
@@ -140,6 +163,27 @@ const callFlaskUploadAPI = async (filePath, clinicId, patientId, reportType, rep
   }
 };
 
+// Helper function to check AI Maintenance Mode
+const checkAiMaintenanceMode = async () => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'SERVER_AI_MAINTENANCE_MODE')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking maintenance mode:', error);
+      return false; // Fail safe: assume not in maintenance if error
+    }
+
+    return data?.value === 'true';
+  } catch (err) {
+    console.error('Unexpected error checking maintenance mode:', err);
+    return false;
+  }
+};
+
 // Helper function to update report status with Flask processing results
 const updateReportWithFlaskResults = async (reportId, flaskResults) => {
   try {
@@ -177,6 +221,7 @@ const updateReportWithFlaskResults = async (reportId, flaskResults) => {
     console.error('❌ Error updating report:', error);
   }
 };
+
 
 // ✅ Create AI Report with File Upload and Flask Integration
 export const createReport = async (req, res) => {
@@ -377,7 +422,7 @@ export const createReport = async (req, res) => {
         if (report.raport_type === 'cbct') {
           setTimeout(() => {
             try {
-              generateCbctReport({ report_id: report.report_id, uploadedFile: req.file });
+              processCbctReport({ report_id: report.report_id, uploadedFile: req.file });
             } catch (err) {
               console.error('Error calling generateCbctReport:', err);
             }
@@ -421,8 +466,10 @@ const isMedicalImagingFile = (filename) => {
 
 // Helper function to get Flask API status
 export const getFlaskApiStatus = async (req, res) => {
+  let flaskBaseUrl = 'http://localhost:5030';
   try {
-    const response = await fetch(`${FLASK_API_URL}/slices-count`, {
+    flaskBaseUrl = await getAiServerUrl();
+    const response = await fetch(`${flaskBaseUrl}/slices-count`, {
       method: 'GET',
       timeout: 5000
     });
@@ -432,7 +479,7 @@ export const getFlaskApiStatus = async (req, res) => {
       res.json({
         success: true,
         flask_api_status: 'online',
-        flask_url: FLASK_API_URL,
+        flask_url: flaskBaseUrl,
         data
       });
     } else {
@@ -442,7 +489,7 @@ export const getFlaskApiStatus = async (req, res) => {
     res.status(503).json({
       success: false,
       flask_api_status: 'offline',
-      flask_url: FLASK_API_URL,
+      flask_url: flaskBaseUrl,
       error: error.message
     });
   }
@@ -451,7 +498,8 @@ export const getFlaskApiStatus = async (req, res) => {
 // Helper function to clear Flask cache
 export const clearFlaskCache = async (req, res) => {
   try {
-    const response = await fetch(`${FLASK_API_URL}/clear-cache`, {
+    const flaskBaseUrl = await getAiServerUrl();
+    const response = await fetch(`${flaskBaseUrl}/clear-cache`, {
       method: 'POST',
       timeout: 10000
     });
@@ -476,8 +524,19 @@ export const clearFlaskCache = async (req, res) => {
 };
 
 // ✅ Generate Pano Report with Flask API Integration
+// ✅ Generate Pano Report with Flask API Integration
 export const generatePanoReportWithFlask = async (req, res) => {
   console.log('🔄 Generating Pano Report with Flask API...');
+
+  // 0. Check Maintenance Mode
+  const isMaintenance = await checkAiMaintenanceMode();
+  if (isMaintenance) {
+    return res.status(503).json({
+      success: false,
+      error: 'AI Server is currently in maintenance mode. Please try again later.',
+      status: 'maintenance'
+    });
+  }
 
   upload.single('file')(req, res, async (err) => {
     if (err) {
@@ -1482,7 +1541,45 @@ export const testReportUrl = async (req, res) => {
 };
 
 // Updated legacy functions to maintain compatibility (keeping original logic but with updated paths)
-export async function generateCbctReport(report_id) {
+// ✅ New Route Handler for CBCT (with Maintenance Check)
+export const generateCbctReport = async (req, res) => {
+  try {
+    // Check Maintenance Mode
+    const isMaintenance = await checkAiMaintenanceMode();
+    if (isMaintenance) {
+      return res.status(503).json({
+        success: false,
+        error: 'AI Server is currently in maintenance mode. Please try again later.',
+        status: 'maintenance'
+      });
+    }
+
+    // Extract data (assuming req.body has report_id)
+    const { report_id } = req.body;
+    const uploadedFile = req.file;
+
+    if (!report_id) {
+      return res.status(400).json({ success: false, error: 'Report ID is required' });
+    }
+
+    // Call internal processor
+    // Passing object structure matching the original internal function expectation
+    const result = await processCbctReport({ report_id, uploadedFile });
+
+    if (result.success) {
+      return res.json({ success: true, message: 'Cbct report generation initiated' });
+    } else {
+      return res.status(500).json(result);
+    }
+
+  } catch (error) {
+    console.error('Error in generateCbctReport route:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Renamed internal helper
+export async function processCbctReport(report_id) {
   // لازم نجيب patient_id و clinic_id من الداتا
   const { data: reportData } = await supabaseUser
     .from('report_ai')

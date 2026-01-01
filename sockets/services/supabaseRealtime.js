@@ -496,6 +496,49 @@ export const initializeRealtimeSubscriptions = (io) => {
         });
 
     realtimeSubscriptions.set('notification_changes', notificationSubscription);
+
+    // App Settings UPDATE subscription (For System Maintenance Mode)
+    const settingsSubscription = supabaseAdmin
+        .channel('app_settings_changes')
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'app_settings',
+                filter: 'key=eq.SERVER_API_MAINTENANCE_MODE'
+            },
+            async (payload) => {
+                console.log('⚙️ App setting updated:', payload);
+
+                try {
+                    const { new: newRecord } = payload;
+                    const maintenanceMode = newRecord.value;
+
+                    console.log('📢 Realtime maintenance mode update detected:', maintenanceMode);
+
+                    io.emit('maintenance_mode_update', {
+                        isEnabled: maintenanceMode === 'true',
+                        message: maintenanceMode === 'true'
+                            ? 'The system is currently undergoing maintenance treatment.'
+                            : 'Maintenance treatment has completed. System is online.'
+                    });
+
+                } catch (error) {
+                    console.error('Error processing realtime settings update:', error);
+                }
+            }
+        )
+        .subscribe((status) => {
+            console.log('⚙️ Settings subscription status:', status);
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ Settings realtime subscription active');
+            } else if (status === 'CHANNEL_ERROR') {
+                console.error('❌ Settings realtime subscription error');
+            }
+        });
+
+    realtimeSubscriptions.set('app_settings_changes', settingsSubscription);
 };
 
 /**

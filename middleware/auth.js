@@ -7,12 +7,41 @@ const TOKEN_CONFIG = {
   REFRESH_TOKEN_AGE: parseInt(process.env.REFRESH_TOKEN_AGE) || 7 * 24 * 60 * 60 * 1000
 };
 
-export async function authMiddleware(req, res, next) {
 
-  // قراءة الـ tokens من الـ HTTP-only cookies فقط
+export async function authMiddleware(req, res, next) {
+  // Log the API request
+  console.log(`[API Request] ${req.method} ${req.originalUrl || req.url}`);
+
+  // 1. Check Maintenance Mode
+  try {
+    const { data: maintenanceSettings, error: maintenanceError } = await supabaseAdmin
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'SERVER_API_MAINTENANCE_MODE')
+      .maybeSingle();
+    console.log("maintenanceSettings", maintenanceSettings);
+    if (!maintenanceError && maintenanceSettings) {
+      // Check if value is explicitly 'true' (string or boolean)
+      const isMaintenanceModeActive = String(maintenanceSettings.value).toLowerCase() === 'true';
+
+      if (!isMaintenanceModeActive) { // If value is NOT 'true'
+        console.warn(`[Maintenance] Blocked access from ${req.ip}`);
+        return res.status(503).json({
+          error: 'Server is currently under maintenance. Please try again later.',
+          code: 'MAINTENANCE_MODE'
+        });
+      }
+    } else {
+
+      console.log('[Maintenance] Setting not found, assuming system is UP.');
+    }
+  } catch (err) {
+    console.error('[Maintenance] Failed to check status:', err);
+    // Proceed or Block? Proceeding is safer for up-time.
+  }
+
   let accessToken = req.cookies?.access_token;
   let refreshToken = req.cookies?.refresh_token;
-  // التحقق من وجود الـ token في الـ headers (للـ API calls)
   if (!accessToken && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     accessToken = req.headers.authorization.split(' ')[1];
   }

@@ -57,8 +57,11 @@ app.use('/api/teeth', teethRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes)
+import testRoutes from './routes/testRoutes.js';
+
 app.use('/api/security', securityRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/test', testRoutes);
 // Serve static files
 app.use('/uploads', express.static('uploads'));
 

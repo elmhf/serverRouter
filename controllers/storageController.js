@@ -35,7 +35,7 @@ const getBucketDetailsRecursive = async (bucketName, path = '') => {
                 totalSize += size;
                 fileCount++;
                 allFiles.push({
-                    name: item.name,
+                    name: path + item.name, // Store full path to identify folder structure
                     bucket: bucketName,
                     size: formatBytes(size),
                     rawSize: size,
@@ -61,7 +61,7 @@ export const getStorageStats = async (req, res) => {
         let totalSizeBytes = 0;
         let totalFiles = 0;
         const bucketStats = [];
-        let allRecentFiles = [];
+        const clinicStats = {}; // Map: clinicId -> { totalSize, reportSize, fileSize ... }
 
         // 2. Iterate buckets and recurse
         for (const bucket of buckets) {
@@ -87,30 +87,87 @@ export const getStorageStats = async (req, res) => {
                 type: uiType
             });
 
-            // Aggregate recent files
-            allRecentFiles = [...allRecentFiles, ...stats.allFiles];
+            // Aggregate clinic usage
+            // Assumption: Top-level folders in 'file' and 'report' buckets are Clinic IDs
+            if (bucket.name.toLowerCase().includes('file') || bucket.name.toLowerCase().includes('report') || bucket.name.toLowerCase().includes('doc')) {
+                stats.allFiles.forEach(file => {
+                    // Extract top-level folder
+                    const parts = file.name.split('/');
+                    if (parts.length > 1) {
+                        const clinicId = parts[0];
+
+                        if (!clinicStats[clinicId]) {
+                            clinicStats[clinicId] = {
+                                clinicId,
+                                totalSize: 0,
+                                reportSize: 0,
+                                fileSize: 0,
+                                reportCount: 0,
+                                fileCount: 0
+                            };
+                        }
+
+                        clinicStats[clinicId].totalSize += file.rawSize;
+
+                        if (bucket.name.toLowerCase().includes('report') || bucket.name.toLowerCase().includes('doc')) {
+                            clinicStats[clinicId].reportSize += file.rawSize;
+                            clinicStats[clinicId].reportCount++;
+                        } else {
+                            clinicStats[clinicId].fileSize += file.rawSize;
+                            clinicStats[clinicId].fileCount++;
+                        }
+                    }
+                });
+            }
         }
 
-        // 3. Post-process
+        // 3. Post-process buckets
         bucketStats.forEach(b => {
             b.percentage = totalSizeBytes > 0 ? Math.round((b.rawSize / totalSizeBytes) * 100) : 0;
         });
 
-        // Top 5 recent
-        allRecentFiles.sort((a, b) => b.rawDate - a.rawDate);
-        const recentFiles = allRecentFiles.slice(0, 5).map(f => ({
-            name: f.name,
-            bucket: f.bucket,
-            size: f.size,
-            date: f.rawDate.toLocaleString()
-        }));
+        // 4. Enrich with Clinic Details
+        const clinicIds = Object.keys(clinicStats);
+        let clinicDetailsMap = {};
+
+        if (clinicIds.length > 0) {
+            const { data: clinics, error: clinicsError } = await supabaseAdmin
+                .from('clinics')
+                .select('id, clinic_name, email, logo_url')
+                .in('id', clinicIds);
+
+            if (!clinicsError && clinics) {
+                clinics.forEach(c => {
+                    clinicDetailsMap[c.id] = c;
+                });
+            }
+        }
+
+        // 5. Format Clinic Usage
+        const clinicUsage = Object.values(clinicStats)
+            .sort((a, b) => b.totalSize - a.totalSize) // Sort by usage desc
+            .map(c => {
+                const details = clinicDetailsMap[c.clinicId] || {};
+                return {
+                    id: c.clinicId,
+                    name: details.clinic_name || 'Unknown Clinic',
+                    email: details.email || '-',
+                    logoUrl: details.logo_url || null,
+                    totalSize: formatBytes(c.totalSize),
+                    reportSize: formatBytes(c.reportSize),
+                    fileSize: formatBytes(c.fileSize),
+                    reportCount: c.reportCount,
+                    fileCount: c.fileCount,
+                    rawTotalSize: c.totalSize
+                };
+            });
 
         res.json({
             totalSize: formatBytes(totalSizeBytes),
             totalSizeGB: (totalSizeBytes / (1024 * 1024 * 1024)).toFixed(2),
             totalFiles,
             buckets: bucketStats,
-            recentFiles
+            clinicUsage
         });
 
     } catch (error) {
@@ -174,6 +231,186 @@ export const getBucketContent = async (req, res) => {
 
     } catch (error) {
         console.error('getBucketContent error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const downloadFile = async (req, res) => {
+    try {
+        const { bucketName } = req.params;
+        const { filePath } = req.query;
+
+        if (!bucketName || !filePath) {
+            return res.status(400).json({ error: 'Bucket name and file path are required' });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .storage
+            .from(bucketName)
+            .download(filePath);
+
+        if (error) {
+            console.error('Error downloading file:', error);
+            return res.status(500).json({ error: 'Failed to download file' });
+        }
+
+        // data is a Blob (in browser-like env) or ArrayBuffer/Buffer depending on supabase-js version in Node.
+        // In Node, supabase-js v2 usually returns a Blob. We need to convert to ArrayBuffer -> Buffer.
+        const arrayBuffer = await data.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        res.setHeader('Content-Type', data.type || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${filePath.split('/').pop()}"`);
+        res.send(buffer);
+
+    } catch (error) {
+        console.error('downloadFile error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const deleteFile = async (req, res) => {
+    try {
+        const { bucketName } = req.params;
+        const { filePath } = req.body;
+
+        if (!bucketName || !filePath) {
+            return res.status(400).json({ error: 'Bucket name and file path are required' });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .storage
+            .from(bucketName)
+            .remove([filePath]);
+
+        if (error) {
+            console.error('Error deleting file:', error);
+            return res.status(500).json({ error: 'Failed to delete file' });
+        }
+
+        res.json({ message: 'File deleted successfully', data });
+
+    } catch (error) {
+        console.error('deleteFile error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const uploadFile = async (req, res) => {
+    try {
+        const { bucketName } = req.params;
+        const file = req.file;
+        const { path } = req.body; // Optional folder path
+
+        if (!bucketName || !file) {
+            return res.status(400).json({ error: 'Bucket name and file are required' });
+        }
+
+        // Construct full path
+        // path might be "folder/" or "folder/subfolder/"
+        // file.originalname is the file name
+        // Supabase expects "folder/filename.ext" or just "filename.ext"
+        const filePath = path ? `${path}${file.originalname}` : file.originalname;
+
+        const { data, error } = await supabaseAdmin
+            .storage
+            .from(bucketName)
+            .upload(filePath, file.buffer, {
+                contentType: file.mimetype,
+                upsert: true
+            });
+
+        if (error) {
+            console.error('Error uploading file:', error);
+            return res.status(500).json({ error: 'Failed to upload file' });
+        }
+
+        res.json({ message: 'File uploaded successfully', data });
+
+    } catch (error) {
+        console.error('uploadFile error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const createBucket = async (req, res) => {
+    try {
+        const { name, public: isPublic } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ error: 'Bucket name is required' });
+        }
+
+        // Validate name format (only lowercase, numbers, dashes)
+        const nameRegex = /^[a-z0-9-]+$/;
+        if (!nameRegex.test(name)) {
+            return res.status(400).json({ error: 'Bucket name must only contain lowercase letters, numbers, and dashes.' });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .storage
+            .createBucket(name, {
+                public: isPublic,
+                fileSizeLimit: null, // Optional: set limit
+                allowedMimeTypes: null // Optional: restriction
+            });
+
+        if (error) {
+            console.error('Error creating bucket:', error);
+            // Handle specific error codes if needed (e.g. duplicate)
+            return res.status(500).json({ error: error.message || 'Failed to create bucket' });
+        }
+
+        res.json({ message: 'Bucket created successfully', data });
+
+    } catch (error) {
+        console.error('createBucket error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const deleteBucket = async (req, res) => {
+    try {
+        const { bucketName } = req.params;
+        if (!bucketName) {
+            return res.status(400).json({ error: 'Bucket name is required' });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .storage
+            .deleteBucket(bucketName);
+
+        if (error) {
+            console.error('Error deleting bucket:', error);
+            return res.status(500).json({ error: error.message || 'Failed to delete bucket' });
+        }
+
+        res.json({ message: 'Bucket deleted successfully', data });
+    } catch (error) {
+        console.error('deleteBucket error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const emptyBucket = async (req, res) => {
+    try {
+        const { bucketName } = req.params;
+        if (!bucketName) {
+            return res.status(400).json({ error: 'Bucket name is required' });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .storage
+            .emptyBucket(bucketName);
+
+        if (error) {
+            console.error('Error emptying bucket:', error);
+            return res.status(500).json({ error: error.message || 'Failed to empty bucket' });
+        }
+
+        res.json({ message: 'Bucket emptied successfully', data });
+    } catch (error) {
+        console.error('emptyBucket error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
