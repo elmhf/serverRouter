@@ -26,7 +26,7 @@ const server = createServer(app);
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "https://xdental-frontend.up.railway.app"],
+    origin: ["http://localhost:3000", "https://xdental-frontend.up.railway.app","https://serverrouter.onrender.com"],
     credentials: true
   }
 });
@@ -42,7 +42,7 @@ app.locals.io = io;
 
 
 app.use(cors({
-  origin: ["http://localhost:3000", "https://xdental-frontend.up.railway.app"], // Allow specific origins
+  origin: ["http://localhost:3000", "https://xdental-frontend.up.railway.app","https://serverrouter.onrender.com"], // Allow specific origins
   credentials: true
 }));
 app.use(json());
