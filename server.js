@@ -29,7 +29,7 @@ app.set('trust proxy', 1);
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "https://xdant.vercel.app","https://xdant-3jgeblbb9-jihadchaabani75-1497s-projects.vercel.app"],
+    origin: ["http://localhost:3000", "https://xdant.vercel.app","https://xdant-9eoxwr5ju-jihadchaabani75-1497s-projects.vercel.app"],
     credentials: true
   }
 });
@@ -45,7 +45,7 @@ app.locals.io = io;
 
 
 app.use(cors({
-  origin: ["http://localhost:3000", "https://xdant.vercel.app","https://xdant-3jgeblbb9-jihadchaabani75-1497s-projects.vercel.app"],
+  origin: ["http://localhost:3000", "https://xdant.vercel.app","https://xdant-9eoxwr5ju-jihadchaabani75-1497s-projects.vercel.app"],
   credentials: true
 }));
 app.use(json());
