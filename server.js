@@ -23,10 +23,13 @@ import { initializeSocket } from './sockets/index.js';
 const app = express();
 const server = createServer(app);
 
+// Trust proxy - Required for Render deployment
+app.set('trust proxy', 1);
+
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "https://xdant.vercel.app", "https://xdental-frontend.up.railway.app","https://serverrouter.onrender.com","https://xdant.vercel.app"],
+    origin: ["http://localhost:3000", "https://xdant.vercel.app"],
     credentials: true
   }
 });
@@ -42,7 +45,7 @@ app.locals.io = io;
 
 
 app.use(cors({
-  origin: ["http://localhost:3000", "https://xdant.vercel.app", "https://xdental-frontend.up.railway.app","https://serverrouter.onrender.com","https://xdant.vercel.app"], // Allow specific origins
+  origin: ["http://localhost:3000", "https://xdant.vercel.app"],
   credentials: true
 }));
 app.use(json());
