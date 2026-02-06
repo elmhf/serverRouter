@@ -15,7 +15,7 @@ const port = 3003;
 
 console.log("EMAIL_USER:", process.env.EMAIL_USER);
 console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "******" : null);
-
+console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "******" : null);
 app.use(cors());
 app.use(json());
 

@@ -1130,7 +1130,6 @@ export const getReportData = async (req, res) => {
       report_url,
       data_url
     };
-
     // إذا كان المستخدم عضو، أرجع بيانات التقرير
     res.json({
       success: true,
@@ -1168,7 +1167,7 @@ const fetchJsonFromUrl = async (url) => {
     if (!contentType || !contentType.includes('application/json')) {
       console.warn('⚠️ Response is not JSON format:', contentType);
     }
-
+    console.log('✅ Successfully fetched JSON data');
     const jsonData = await response.json();
     console.log('✅ Successfully fetched JSON data');
     return jsonData;
@@ -1430,6 +1429,7 @@ export const getReportDataWithJsonPost = async (req, res) => {
 
       // Return combined data
       console.log('pano_image_urlpano_image_urlpano_image_url Data-----------------------------:', pano_image_url, cbct_image_url);
+      console.log("jsonData", jsonData.metadata);
       res.json({
         success: true,
         status: 'success',
@@ -1442,10 +1442,9 @@ export const getReportDataWithJsonPost = async (req, res) => {
         },
 
 
-
         data: jsonData, // Main JSON data
         _meta: {
-          metadata: report.metadata,
+          metadata: report.metadata || jsonData.metadata,
           fetched_at: new Date().toISOString(),
           clinic_id: patient.clinic_id,
           data_source: report_url
