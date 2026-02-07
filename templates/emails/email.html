@@ -1,100 +1,47 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Notification Xdantel</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              primary: '#1F2937',
-              secondary: '#6B7280',
-            }
-          },
-          borderRadius: {
-            '4xl': '2rem',
-          }
-        }
-      }
-    }
-    function copyCode() {
-      const code = document.getElementById('otp-code').innerText.trim();
-      navigator.clipboard.writeText(code).then(() => {
-        const btn = document.getElementById('copy-icon');
-        const originalContent = btn.innerHTML;
-        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
-        setTimeout(() => {
-          btn.innerHTML = originalContent;
-        }, 2000);
-      }).catch(err => {
-        console.error('Failed to copy: ', err);
-      });
-    }
-  </script>
 </head>
+<body style="margin: 0; padding: 0; font-family: sans-serif; background-color: #FAFAFA; color: #111827;">
 
-<body class="bg-[#FAFAFA] font-sans antialiased m-0 p-0 text-gray-900">
-  <div class="w-full table-fixed bg-[#FAFAFA] py-12 px-4">
-
-    <div class="max-w-[480px] mx-auto bg-white rounded-3xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
-
-      <!-- Header with Logo -->
-      <div class="pt-12 pb-6 text-center">
-        <div class="inline-flex items-center justify-center gap-2">
-          <img src="https://xdental-frontend.up.railway.app/assets/images/logo.png" alt="Xdantel"
-            class="h-8 w-auto object-contain">
-          <span class="text-xl font-bold tracking-tight text-gray-900">Xdantel</span>
-        </div>
+  <div style="background-color: #FAFAFA; padding: 48px 20px; font-family: sans-serif;">
+    <div style="max-width: 480px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow: hidden;">
+      
+      <!-- Header -->
+      <div style="padding: 48px 0 24px; text-align: center;">
+        <img src="https://xdental-frontend.up.railway.app/assets/images/logo.png" alt="Xdantel" style="height: 32px; vertical-align: middle;">
+        <h2 style="display: inline; font-size: 20px; font-weight: bold; margin-left: 8px; vertical-align: middle;">Xdantel</h2>
       </div>
 
       <!-- Content -->
-      <div class="px-10 pb-12 text-center">
-        <h1 class="text-xl font-bold text-gray-900 mb-6 tracking-tight">Bonjour {{firstName}} {{lastName}}</h1>
-
-        <p class="text-[15px] leading-relaxed text-gray-500 mb-8 font-medium">
-          Nous avons bien reçu une demande de vérification pour votre adresse e-mail : <br>
-          <strong class="text-gray-900 font-semibold">{{email}}</strong>
+      <div style="padding: 0 40px 48px; text-align: center;">
+        <h1 style="font-size: 20px; font-weight: bold; color: #111827; margin-top: 0;">Bonjour {{firstName}} {{lastName}}</h1>
+        
+        <p style="font-size: 15px; color: #6B7280; line-height: 1.5; margin-bottom: 24px;">
+          Nous avons bien reçu une demande de vérification pour votre adresse e-mail :<br>
+          <strong style="color: #111827;">{{email}}</strong>
         </p>
 
-        <!-- Code Block -->
-        <div class="my-6 flex flex-col items-center gap-3">
-          <p class="text-xs uppercase tracking-widest text-gray-400 font-bold mb-1">Votre Code</p>
-
-          <div class="bg-gray-50 px-8 py-4 rounded-xl border border-gray-100 flex items-center gap-4">
-            <span id="otp-code" class="font-mono text-3xl font-bold text-indigo-600 tracking-wider">
-              {{CODE}}
-            </span>
-            <div class="h-8 w-px bg-gray-200"></div>
-            <button id="copy-icon" onclick="copyCode()"
-              class="text-gray-400 hover:text-brand-primary transition-colors focus:outline-none cursor-pointer p-1 rounded-md hover:bg-gray-100"
-              title="Copier le code">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-              </svg>
-            </button>
-          </div>
+        <!-- Code Box -->
+        <div style="margin: 24px 0; background-color: #F9FAFB; padding: 20px; border-radius: 12px; border: 1px solid #F3F4F6;">
+          <p style="font-size: 12px; color: #9CA3AF; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; font-weight: bold;">Votre Code</p>
+          <span style="font-family: monospace; font-size: 32px; font-weight: bold; color: #4F46E5; letter-spacing: 4px; display: block;">
+            {{CODE}}
+          </span>
         </div>
 
-        <p class="text-xs text-gray-400 mb-8 mt-6">
-          Si vous n'avez pas demandé ce code, merci d'ignorer cet e-mail.
-        </p>
-
-        <div class="mt-8 pt-8 border-t border-gray-50">
-          <p class="text-xs text-gray-400">
-            &copy; 2025 Xdantel Inc.
-          </p>
+        <p style="font-size: 12px; color: #9CA3AF; margin-top: 24px;">Si vous n'avez pas demandé ce code, merci d'ignorer cet e-mail.</p>
+        
+        <!-- Footer -->
+        <div style="margin-top: 32px; padding-top: 32px; border-top: 1px solid #F9FAFB;">
+          <p style="font-size: 12px; color: #9CA3AF; margin: 0;">&copy; 2025 Xdantel Inc.</p>
         </div>
       </div>
     </div>
-
   </div>
-</body>
 
+</body>
 </html>
