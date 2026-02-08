@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createClinic, updateClinic, deleteClinic, getUserClinics, updateClinicEmail, updateClinicPhone, updateClinicInfo, changeClinicLogo, changeStampClinic, getClinicMembers, getClinicInvitationMembers, deleteClinicInvitation, inviteClinicMember, validateInvitation, acceptInvitation, rejectInvitation, leaveClinic, deleteClinicMember, changeMemberRole, transferClinicOwnership } from '../controllers/clinicController.js';
+import { createClinic, updateClinic, deleteClinic, getUserClinics, updateClinicEmail, updateClinicPhone, updateClinicInfo, changeClinicLogo, changeStampClinic, getClinicMembers, getClinicInvitationMembers, deleteClinicInvitation, inviteClinicMember, validateInvitation, acceptInvitation, rejectInvitation, leaveClinic, deleteClinicMember, changeMemberRole, transferClinicOwnership, checkUserOwnership } from '../controllers/clinicController.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { verifyEmailOtpCode } from '../controllers/authController.js';
 import multer from 'multer';
@@ -19,6 +19,7 @@ const upload = multer({
 
 const router = Router();
 
+router.get('/is-owner', authMiddleware, checkUserOwnership);
 router.post('/create', authMiddleware, verifyEmailOtpCode, createClinic);
 router.put('/:clinicId', authMiddleware, updateClinic);
 router.delete('/:clinicId', authMiddleware, deleteClinic);

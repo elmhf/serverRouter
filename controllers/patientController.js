@@ -60,6 +60,28 @@ export const addPatient = async (req, res) => {
       });
     }
 
+    // 2. Check permissions for adding treating doctors
+    if (treating_doctor_id && Array.isArray(treating_doctor_id) && treating_doctor_id.length > 0) {
+      // Get user's role
+      const { data: userRoleData, error: roleError } = await supabaseUser
+        .from('user_clinic_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('clinic_id', clinicId)
+        .single();
+
+      if (roleError) {
+        console.error('Role check error:', roleError);
+        return res.status(500).json({ error: 'Database error checking role' });
+      }
+
+      if (userRoleData?.role !== 'full_access') {
+        return res.status(403).json({
+          error: 'Only admins and owners can assign treating doctors'
+        });
+      }
+    }
+
     // 3. Check if patient with this email already exists in this clinic
     const { data: existingPatient, error: checkError } = await supabaseUser
       .from('patients')
@@ -404,13 +426,6 @@ export const getPatient = async (req, res) => {
 
     const isTreatingDoctor = !!treatment;
 
-    if (!isCreator && !isTreatingDoctor) {
-      return res.status(403).json({
-        error:
-          "You do not have permission to view this patient. Only the clinic creator or the treating doctor can view patient details.",
-      });
-    }
-
     // ✅ 3. جلب الدور
     const { data: userRole } = await supabaseUser
       .from("user_clinic_roles")
@@ -419,10 +434,19 @@ export const getPatient = async (req, res) => {
       .eq("clinic_id", patient.clinic_id)
       .maybeSingle();
 
+    const isFullAccess = userRole?.role === "full_access";
+
+    if (!isCreator && !isTreatingDoctor && !isFullAccess) {
+      return res.status(403).json({
+        error:
+          "You do not have permission to view this patient. Only the clinic creator, treating doctors, or admins can view patient details.",
+      });
+    }
+
     const userAccessLevel = {
       isCreator,
       isTreatingDoctor,
-      isFullAccess: userRole?.role === "full_access",
+      isFullAccess,
       isClinicAccess: userRole?.role === "clinic_access",
       role: userRole?.role || "unknown",
     };
@@ -574,88 +598,102 @@ export const updatePatient = async (req, res) => {
       return res.status(500).json({ error: 'Failed to update patient' });
     }
 
-    // 5. Update treating doctors if provided
+    // 5. Update treating doctors if provided AND user has permission
     let newlyAssignedDoctorIds = [];
     if (treating_doctor_id && Array.isArray(treating_doctor_id)) {
-      console.log('Updating treating doctors for patient:', patientId);
-      console.log('Requested treating_doctor_id:', treating_doctor_id);
-
-      // Get existing treating doctors before deletion
-      const { data: existingTreatments } = await supabaseUser
-        .from('treatments')
-        .select('treating_doctor_id')
-        .eq('patient_id', patientId);
-
-      const existingDoctorIds = existingTreatments?.map(t => t.treating_doctor_id) || [];
-
-      // First, delete existing treatments for this patient
-      const { error: deleteError } = await supabaseUser
-        .from('treatments')
-        .delete()
-        .eq('patient_id', patientId);
-
-      if (deleteError) {
-        console.error('Delete existing treatments error:', deleteError);
-      } else {
-        console.log('Deleted existing treatments for patient');
-      }
-
-      // Check if all treating doctors are members of this clinic
-      const { data: doctorMemberships, error: doctorCheckError } = await supabaseUser
+      // Check if user has permission to manage treating doctors
+      const { data: userRoleData, error: roleError } = await supabaseUser
         .from('user_clinic_roles')
-        .select('user_id')
+        .select('role')
+        .eq('user_id', userId)
         .eq('clinic_id', existingPatient.clinic_id)
-        .in('user_id', treating_doctor_id);
+        .single();
 
-      console.log('Doctor memberships query result:', doctorMemberships);
-      console.log('Doctor memberships error:', doctorCheckError);
+      // Only proceed if user has full_access
+      if (userRoleData?.role === 'full_access') {
+        console.log('Updating treating doctors for patient:', patientId);
+        console.log('Requested treating_doctor_id:', treating_doctor_id);
 
-      if (doctorCheckError) {
-        console.error('Doctor membership check error:', doctorCheckError);
-      }
-
-      // Get valid doctor IDs (those who are clinic members)
-      const validDoctorIds = doctorMemberships?.map(membership => membership.user_id) || [];
-      const invalidDoctorIds = treating_doctor_id.filter(id => !validDoctorIds.includes(id));
-
-      console.log('validDoctorIds:', validDoctorIds);
-      console.log('invalidDoctorIds:', invalidDoctorIds);
-
-      if (invalidDoctorIds.length > 0) {
-        console.error('Some treating doctors are not members of this clinic:', invalidDoctorIds);
-      }
-
-      // Identify newly assigned doctors (those not in the existing list)
-      newlyAssignedDoctorIds = validDoctorIds.filter(id => !existingDoctorIds.includes(id));
-      console.log('Newly assigned doctor IDs:', newlyAssignedDoctorIds);
-
-      // Create new treatment entries for valid doctors
-      if (validDoctorIds.length > 0) {
-        const treatmentEntries = validDoctorIds.map(doctorId => ({
-          patient_id: patientId,
-          treating_doctor_id: doctorId,
-          clinic_id: existingPatient.clinic_id
-        }));
-
-        console.log('Creating new treatment entries:', treatmentEntries);
-
-        const { data: treatments, error: treatmentError } = await supabaseUser
+        // Get existing treating doctors before deletion
+        const { data: existingTreatments } = await supabaseUser
           .from('treatments')
-          .insert(treatmentEntries)
-          .select();
+          .select('treating_doctor_id')
+          .eq('patient_id', patientId);
 
-        if (treatmentError) {
-          console.error('Treatment insert error:', treatmentError);
+        const existingDoctorIds = existingTreatments?.map(t => t.treating_doctor_id) || [];
+
+        // First, delete existing treatments for this patient
+        const { error: deleteError } = await supabaseUser
+          .from('treatments')
+          .delete()
+          .eq('patient_id', patientId);
+
+        if (deleteError) {
+          console.error('Delete existing treatments error:', deleteError);
         } else {
-          console.log('New treatments created successfully:', treatments);
+          console.log('Deleted existing treatments for patient');
         }
-      } else {
-        console.log('No valid doctors found, skipping treatment creation');
+
+        // Check if all treating doctors are members of this clinic
+        const { data: doctorMemberships, error: doctorCheckError } = await supabaseUser
+          .from('user_clinic_roles')
+          .select('user_id')
+          .eq('clinic_id', existingPatient.clinic_id)
+          .in('user_id', treating_doctor_id);
+
+        console.log('Doctor memberships query result:', doctorMemberships);
+        console.log('Doctor memberships error:', doctorCheckError);
+
+        if (doctorCheckError) {
+          console.error('Doctor membership check error:', doctorCheckError);
+        }
+
+        // Get valid doctor IDs (those who are clinic members)
+        const validDoctorIds = doctorMemberships?.map(membership => membership.user_id) || [];
+        const invalidDoctorIds = treating_doctor_id.filter(id => !validDoctorIds.includes(id));
+
+        console.log('validDoctorIds:', validDoctorIds);
+        console.log('invalidDoctorIds:', invalidDoctorIds);
+
+        if (invalidDoctorIds.length > 0) {
+          console.error('Some treating doctors are not members of this clinic:', invalidDoctorIds);
+        }
+
+        // Identify newly assigned doctors (those not in the existing list)
+        newlyAssignedDoctorIds = validDoctorIds.filter(id => !existingDoctorIds.includes(id));
+        console.log('Newly assigned doctor IDs:', newlyAssignedDoctorIds);
+
+        // Create new treatment entries for valid doctors
+        if (validDoctorIds.length > 0) {
+          const treatmentEntries = validDoctorIds.map(doctorId => ({
+            patient_id: patientId,
+            treating_doctor_id: doctorId,
+            clinic_id: existingPatient.clinic_id
+          }));
+
+          console.log('Creating new treatment entries:', treatmentEntries);
+
+          const { data: treatments, error: treatmentError } = await supabaseUser
+            .from('treatments')
+            .insert(treatmentEntries)
+            .select();
+
+          if (treatmentError) {
+            console.error('Treatment insert error:', treatmentError);
+          } else {
+            console.log('New treatments created successfully:', treatments);
+          }
+        } else {
+          console.log('No valid doctors found, skipping treatment creation');
+        }
       }
+
+
+
+
+    } else {
+      console.log('User does not have permission to update treating doctors. Skipping.');
     }
-
-
-
 
     // 6. Get clinic and doctor information for notification
     const { data: clinicInfo, error: clinicError } = await supabaseUser

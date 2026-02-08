@@ -13,6 +13,24 @@ export async function createClinic(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   try {
+    // Step 0: Check if user is already an admin or owner of another clinic
+    const { data: existingRoles, error: rolesError } = await supabaseUser
+      .from('user_clinic_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .in('role', ['admin', 'owner']);
+
+    if (rolesError) {
+      console.error('Roles check error:', rolesError);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    if (existingRoles && existingRoles.length > 0) {
+      return res.status(403).json({
+        error: 'You are already an admin or owner of a clinic. You cannot create another one.'
+      });
+    }
+
     // Step 1: Create the new clinic
     const { data: clinic, error: clinicError } = await supabaseUser
       .from("clinics")
@@ -890,6 +908,10 @@ export const inviteClinicMember = async (req, res) => {
     if (userCheckError) {
       console.error('User check error:', userCheckError);
       return res.status(500).json({ error: 'Database error' });
+    }
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
     }
 
     if (existingUser) {
@@ -2021,6 +2043,35 @@ export const transferClinicOwnership = async (req, res) => {
         id: userId
       }
     });
+
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const checkUserOwnership = async (req, res) => {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const { data: existingRoles, error: rolesError } = await supabaseUser
+      .from('user_clinic_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .in('role', ['admin', 'owner']);
+
+    if (rolesError) {
+      console.error('Roles check error:', rolesError);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    const isOwnerOrAdmin = existingRoles && existingRoles.length > 0;
+
+    return res.status(200).json({ isOwnerOrAdmin });
 
   } catch (err) {
     console.error('Unexpected error:', err);

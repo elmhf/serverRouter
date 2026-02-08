@@ -347,7 +347,7 @@ export const changeProfilePhoto = async (req, res) => {
       console.error('خطأ في رفع صورة البروفايل إلى Supabase:', error);
       return res.status(500).json({
         success: false,
-        message: 'خطأ في رفع صورة البروفايل إلى التخزين'
+        message: "error"
       });
     }
 

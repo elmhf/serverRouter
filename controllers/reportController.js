@@ -7,6 +7,11 @@ import fetch from 'node-fetch';
 
 // Helper function to get AI Server URL from app settings
 const getAiServerUrl = async () => {
+  // Check environment variable first
+  if (process.env.SERVER_AI_URL) {
+    return process.env.SERVER_AI_URL;
+  }
+
   try {
     const { data, error } = await supabaseAdmin
       .from('app_settings')
@@ -190,12 +195,13 @@ const updateReportWithFlaskResults = async (reportId, flaskResults) => {
     let updateData = {};
 
     if (flaskResults.success) {
-      updateData.status = 'completed';
+      // ✅ AI Server accepted the job (202 Accepted)
+      // Status remains 'processing' until the AI server callbacks/updates it to 'completed'
+      updateData.status = 'processing';
       updateData.processing_info = {
         flask_success: true,
-        processing_result: flaskResults.flask_processing,
-        supabase_upload: flaskResults.supabase_upload,
-        processed_at: new Date().toISOString()
+        processing_result: flaskResults.data, // Save the queue info (job_id, etc)
+        queued_at: new Date().toISOString()
       };
     } else {
       updateData.status = 'failed';
@@ -1378,6 +1384,12 @@ export const getReportDataWithJsonPost = async (req, res) => {
     if (report.raport_type === 'pano') {
       const panoPath = `${patient.clinic_id}/${report.patient_id}/pano/${report.report_id}/original.png`;
       console.log('🔍 Generating Signed URL for Pano:', panoPath);
+      console.log('Parameters:', {
+        clinicId: patient.clinic_id,
+        patientId: report.patient_id,
+        reportId: report.report_id,
+        bucket: 'reports'
+      });
 
       try {
         const { data, error } = await supabaseAdmin
@@ -1387,6 +1399,8 @@ export const getReportDataWithJsonPost = async (req, res) => {
 
         if (error) {
           console.error('❌ Error generating pano signed URL:', error);
+          console.error('   Path attempted:', panoPath);
+          console.error('   Bucket used:', 'reports');
           // Don't crash, just log it. The file might not be ready yet.
         } else {
           console.log('✅ Pano URL generated:', data?.signedUrl ? 'Yes' : 'No');

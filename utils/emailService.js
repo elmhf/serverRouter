@@ -1,10 +1,13 @@
 import nodemailer from 'nodemailer';
 
+console.log("Email User:", process.env.EMAIL_USER);
+console.log("Email Pass:", process.env.EMAIL_PASS ? "Exists" : "Missing");
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "jihadchaabani80@gmail.com",
-    pass: "kvactkcznenvpkup" // App Password من Gmail (موش كلمة السرّ العادية)
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   },
   tls: {
     rejectUnauthorized: false // يخلي الاتصال يتجاوز self-signed error
@@ -21,5 +24,12 @@ export async function sendEmail({ to, subject, text, html }) {
     html,
   };
 
-  return transporter.sendMail(mailOptions);
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent: ", info.response);
+    return info;
+  } catch (error) {
+    console.error("Error sending email: ", error);
+    throw error;
+  }
 } 

@@ -55,13 +55,28 @@ export async function sendPasswordOtp(req, res) {
     // Générer et envoyer OTP
     const code = Math.floor(100000 + Math.random() * 900000);
     const expires = Date.now() + 5 * 60 * 1000;
-    // Remplace sendEmail par ton service d'envoi réel
-    await sendEmail({ to: email, subject: 'Your OTP Code', text: `Your verification code is: ${code}` });
 
-    // Stocker OTP dans user_metadata
+    // Récupérer les données utilisateur pour l'email
     const { data: { user }, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userData.user_id);
     if (getUserError || !user) return res.status(404).json({ error: 'User not found' });
+
     const meta = user.user_metadata || {};
+
+    // Rendu du template HTML
+    const html = renderEmailTemplate({
+      code,
+      firstName: meta.first_name || 'Utilisateur',
+      lastName: meta.last_name || '',
+      email,
+      templateName: 'password-reset-otp.html'
+    });
+
+    await sendEmail({
+      to: email,
+      subject: 'Réinitialisation de mot de passe',
+      text: `Votre code de vérification est : ${code}`,
+      html
+    });
     meta.password_otp_code = code.toString();
     meta.password_otp_expires = expires;
     await supabaseAdmin.auth.admin.updateUserById(userData.user_id, { user_metadata: meta });
@@ -1445,11 +1460,28 @@ export async function sendPasswordResetOtp(req, res) {
 
     const code = Math.floor(100000 + Math.random() * 900000);
     const expires = Date.now() + 5 * 60 * 1000;
-    await sendEmail({ to: email, subject: 'Password Reset OTP', text: `Your code: ${code}` });
-    console.log("code", code, "expires", expires);
+
+    // Fetch user details for email template
     const { data: { user }, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userData.user_id);
     if (getUserError || !user) return res.status(404).json({ error: 'User not found' });
     const meta = user.user_metadata || {};
+
+    const html = renderEmailTemplate({
+      code,
+      firstName: meta.first_name || 'Utilisateur',
+      lastName: meta.last_name || '',
+      email,
+      templateName: 'password-reset-otp.html'
+    });
+
+    await sendEmail({
+      to: email,
+      subject: 'Réinitialisation de mot de passe',
+      text: `Votre code de vérification est : ${code}`,
+      html
+    });
+    console.log("code", code, "expires", expires);
+
     meta.reset_otp_code = code.toString();
     meta.reset_otp_expires = expires;
     // Remove any previous reset token
