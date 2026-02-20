@@ -427,6 +427,7 @@ export const getPatient = async (req, res) => {
     const isTreatingDoctor = !!treatment;
 
     // ✅ 3. جلب الدور
+    // ✅ 3. جلب الدور
     const { data: userRole } = await supabaseUser
       .from("user_clinic_roles")
       .select("role")
@@ -434,7 +435,16 @@ export const getPatient = async (req, res) => {
       .eq("clinic_id", patient.clinic_id)
       .maybeSingle();
 
-    const isFullAccess = userRole?.role === "full_access";
+    const allowedRoles = ['full_access', 'admin', 'owner'];
+    const isFullAccess = allowedRoles.includes(userRole?.role);
+
+    console.log("🔍 Debugging getPatient permissions:");
+    console.log("User ID:", userId);
+    console.log("Clinic ID:", patient.clinic_id);
+    console.log("Role Data:", userRole);
+    console.log("isCreator:", isCreator);
+    console.log("isTreatingDoctor:", isTreatingDoctor);
+    console.log("isFullAccess:", isFullAccess);
 
     if (!isCreator && !isTreatingDoctor && !isFullAccess) {
       return res.status(403).json({
@@ -450,6 +460,14 @@ export const getPatient = async (req, res) => {
       isClinicAccess: userRole?.role === "clinic_access",
       role: userRole?.role || "unknown",
     };
+
+    console.log("🔍 Debugging getPatient permissions:");
+    console.log("User ID:", userId);
+    console.log("Clinic ID:", patient.clinic_id);
+    console.log("Role Data:", userRole);
+    console.log("isCreator:", isCreator);
+    console.log("isTreatingDoctor:", isTreatingDoctor);
+    console.log("isFullAccess:", isFullAccess);
 
     // ✅ 4. هل المريض في المفضلة؟
     const { data: favorite } = await supabaseUser

@@ -1382,58 +1382,53 @@ export const getReportDataWithJsonPost = async (req, res) => {
     // Add signed pano image URL if type is pano
     let pano_image_url = null;
     if (report.raport_type === 'pano') {
-      const panoPath = `${patient.clinic_id}/${report.patient_id}/pano/${report.report_id}/original.png`;
-      console.log('🔍 Generating Signed URL for Pano:', panoPath);
-      console.log('Parameters:', {
-        clinicId: patient.clinic_id,
-        patientId: report.patient_id,
-        reportId: report.report_id,
-        bucket: 'reports'
-      });
+      const extensions = ['.png', '.jpg', '.jpeg'];
+      let foundUrl = null;
 
-      try {
-        const { data, error } = await supabaseAdmin
-          .storage
-          .from('reports')
-          .createSignedUrl(panoPath, 60 * 60); // 1 hour
+      for (const ext of extensions) {
+        const panoPath = `${patient.clinic_id}/${report.patient_id}/pano/${report.report_id}/original${ext}`;
+        try {
+          const { data, error } = await supabaseAdmin
+            .storage
+            .from('reports')
+            .createSignedUrl(panoPath, 60 * 60);
 
-        if (error) {
-          console.error('❌ Error generating pano signed URL:', error);
-          console.error('   Path attempted:', panoPath);
-          console.error('   Bucket used:', 'reports');
-          // Don't crash, just log it. The file might not be ready yet.
-        } else {
-          console.log('✅ Pano URL generated:', data?.signedUrl ? 'Yes' : 'No');
-          pano_image_url = data?.signedUrl || null;
+          if (!error && data?.signedUrl) {
+            foundUrl = data.signedUrl;
+            console.log(`✅ Pano URL generated with extension ${ext}`);
+            break;
+          }
+        } catch (err) {
+          console.error(`💥 Error checking pano extension ${ext}:`, err.message);
         }
-      } catch (err) {
-        console.error('💥 Exception generating pano signed URL:', err);
       }
+      pano_image_url = foundUrl;
     }
 
     // Add signed cbct image URL if type is cbct
     let cbct_image_url = null;
-    console.log(report.raport_type, 'report.raport_type');
-
     if (report.raport_type === 'cbct') {
-      const cbctPath = `${patient.clinic_id}/${report.patient_id}/cbct/${report.report_id}/original.png`;
-      console.log('🔍 Generating Signed URL for CBCT:', cbctPath);
+      const extensions = ['.png', '.jpg', '.jpeg'];
+      let foundUrl = null;
 
-      try {
-        const { data, error } = await supabaseAdmin
-          .storage
-          .from('reports')
-          .createSignedUrl(cbctPath, 60 * 60); // 1 hour
+      for (const ext of extensions) {
+        const cbctPath = `${patient.clinic_id}/${report.patient_id}/cbct/${report.report_id}/original${ext}`;
+        try {
+          const { data, error } = await supabaseAdmin
+            .storage
+            .from('reports')
+            .createSignedUrl(cbctPath, 60 * 60);
 
-        if (error) {
-          console.error('❌ Error generating CBCT signed URL:', error);
-        } else {
-          console.log('✅ CBCT URL generated:', data?.signedUrl ? 'Yes' : 'No');
-          cbct_image_url = data?.signedUrl || null;
+          if (!error && data?.signedUrl) {
+            foundUrl = data.signedUrl;
+            console.log(`✅ CBCT URL generated with extension ${ext}`);
+            break;
+          }
+        } catch (err) {
+          console.error(`💥 Error checking cbct extension ${ext}:`, err.message);
         }
-      } catch (err) {
-        console.error('💥 Exception generating CBCT signed URL:', err);
       }
+      cbct_image_url = foundUrl;
     }
 
     try {

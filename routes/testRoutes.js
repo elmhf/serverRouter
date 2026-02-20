@@ -1,6 +1,8 @@
 import express from 'express';
 import { renderEmailTemplate } from '../utils/templateRenderer.js';
 
+import { supabaseAdmin } from '../supabaseClient.js';
+
 const router = express.Router();
 
 router.get('/email/:templateName', (req, res) => {

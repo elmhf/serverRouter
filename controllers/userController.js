@@ -1,4 +1,5 @@
 import { supabaseUser, supabaseAdmin } from '../supabaseClient.js';
+import { createClient } from '@supabase/supabase-js';
 import { getFileUrl } from '../utils/uploadUtils.js';
 import fs from 'fs';
 import path from 'path';
@@ -240,19 +241,38 @@ export const changeSignature = async (req, res) => {
     const fileExt = path.extname(req.file.originalname);
     const supabaseFileName = `signature-${req.user.id}-${Date.now()}${fileExt}`;
 
+    // DEBUG LOGGING
+    console.log('📝 Uploading File:', supabaseFileName);
+    console.log('🔑 Admin Key Prefix:', supabaseAdmin.supabaseKey ? supabaseAdmin.supabaseKey.slice(0, 5) + '...' : 'UNDEFINED');
+    console.log('📂 File Buffer Size:', fileBuffer.length);
+    console.log('📄 Content Type:', req.file.mimetype);
+
     // 4. Upload to Supabase Storage (bucket: 'signatures')
-    const { data, error } = await supabaseAdmin.storage
+    // FIXED: Use a fresh admin client instance to ensure no RLS issues
+    const localAdmin = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    const { data, error } = await localAdmin.storage
       .from('signatures')
       .upload(supabaseFileName, fileBuffer, {
         contentType: req.file.mimetype,
-        upsert: true
+        upsert: true,
+        duplex: 'half'
       });
 
     if (error) {
-      console.error('خطأ في رفع الملف إلى Supabase:', error);
+      console.error('ERROR UPLOADING SIGNATURE:', error);
       return res.status(500).json({
         success: false,
-        message: 'خطأ في رفع الإمضاء إلى التخزين'
+        message: 'خطأ في رفع الإمضاء إلى التخزين: ' + error.message
       });
     }
 
@@ -336,18 +356,31 @@ export const changeProfilePhoto = async (req, res) => {
     const supabaseFileName = `profile-${req.user.id}-${Date.now()}${fileExt}`;
 
     // 4. Upload to Supabase Storage (bucket: 'profile-photos')
-    const { data, error } = await supabaseAdmin.storage
+    // FIXED: Use a fresh admin client instance
+    const localAdmin = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    const { data, error } = await localAdmin.storage
       .from('profile-photos')
       .upload(supabaseFileName, fileBuffer, {
         contentType: req.file.mimetype,
-        upsert: true
+        upsert: true,
+        duplex: 'half'
       });
 
     if (error) {
-      console.error('خطأ في رفع صورة البروفايل إلى Supabase:', error);
+      console.error('ERROR UPLOADING PROFILE PHOTO:', error);
       return res.status(500).json({
         success: false,
-        message: "error"
+        message: 'خطأ في رفع صورة البروفايل: ' + error.message
       });
     }
 

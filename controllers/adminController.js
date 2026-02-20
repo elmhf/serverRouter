@@ -35,13 +35,33 @@ export const loginAdmin = async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // 4. تعيين الكوكيز
-    res.cookie('access_token', token, {
+    // 4. إنشاء Refresh Token للأدمن
+    const refreshToken = jwt.sign(
+      {
+        id: admin.admin_id,
+        email: admin.email,
+        role: 'admin',
+        type: 'admin_refresh_token'
+      },
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || 'secret',
+      { expiresIn: '7d' }
+    );
+
+    // 5. تعيين الكوكيز بمسميات خاصة بالأدمن
+    res.cookie('access_token_admin', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
+    res.cookie('refresh_token_admin', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
     res.json({
@@ -60,6 +80,52 @@ export const loginAdmin = async (req, res) => {
 };
 
 
+
+// ✅ تجديد توكن الأدمن
+export const refreshAdminToken = async (req, res) => {
+  const refreshToken = req.cookies?.refresh_token_admin;
+
+  if (!refreshToken) {
+    return res.status(401).json({ error: 'No refresh token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || 'secret'
+    );
+
+    if (decoded.type !== 'admin_refresh_token' || decoded.role !== 'admin') {
+      return res.status(401).json({ error: 'Invalid admin refresh token' });
+    }
+
+    // Issue a new access token
+    const newAccessToken = jwt.sign(
+      {
+        id: decoded.id,
+        email: decoded.email,
+        role: 'admin',
+        type: 'admin_token'
+      },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '24h' }
+    );
+
+    res.cookie('access_token_admin', newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
+    res.json({ message: 'Token refreshed successfully' });
+
+  } catch (err) {
+    console.error('Admin token refresh error:', err);
+    return res.status(401).json({ error: 'Invalid or expired refresh token' });
+  }
+};
 
 // ✅ جلب بيانات الأدمن الحالي
 export const getAdminProfile = async (req, res) => {
@@ -278,8 +344,8 @@ export const logoutAdmin = async (req, res) => {
       path: '/'
     };
 
-    res.clearCookie('access_token', cookieOptions);
-    res.clearCookie('refresh_token', cookieOptions);
+    res.clearCookie('access_token_admin', cookieOptions);
+    res.clearCookie('refresh_token_admin', cookieOptions);
 
     res.json({ message: 'Logged out successfully' });
   } catch (err) {

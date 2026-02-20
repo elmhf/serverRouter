@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { supabaseAdmin } from '../supabaseClient.js';
 
 export async function adminAuthMiddleware(req, res, next) {
-    let token = req.cookies?.access_token;
+    let token = req.cookies?.access_token_admin;
 
     if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
         token = req.headers.authorization.split(' ')[1];
@@ -19,7 +19,7 @@ export async function adminAuthMiddleware(req, res, next) {
         if (decoded.role !== 'admin' || decoded.type !== 'admin_token') {
             return res.status(403).json({ error: 'Not authorized as admin' });
         }
-        console.log(decoded,"----------------------");
+        console.log(decoded, "----------------------");
         // Verify against Admins table
         const { data: admin, error } = await supabaseAdmin
             .from('Admins')
@@ -31,7 +31,7 @@ export async function adminAuthMiddleware(req, res, next) {
             console.error('Admin auth failed: Admin not found in table', error);
             return res.status(401).json({ error: 'Admin not found or invalid token' });
         }
-        console.log(admin,"----------------------");
+        console.log(admin, "----------------------");
         req.user = admin;
         next();
 
