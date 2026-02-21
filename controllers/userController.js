@@ -235,14 +235,13 @@ export const changeSignature = async (req, res) => {
       }
     }
 
-    // 3. Read file buffer
-    const filePath = req.file.path;
-    const fileBuffer = fs.readFileSync(filePath);
+    // 3. Use provided file buffer instead of reading from disk
+    const fileBuffer = req.file.buffer;
     const fileExt = path.extname(req.file.originalname);
     const supabaseFileName = `signature-${req.user.id}-${Date.now()}${fileExt}`;
 
     // DEBUG LOGGING
-    console.log('📝 Uploading File:', supabaseFileName);
+    console.log('📝 Uploading File (from memory):', supabaseFileName);
     console.log('🔑 Admin Key Prefix:', supabaseAdmin.supabaseKey ? supabaseAdmin.supabaseKey.slice(0, 5) + '...' : 'UNDEFINED');
     console.log('📂 File Buffer Size:', fileBuffer.length);
     console.log('📄 Content Type:', req.file.mimetype);
@@ -281,8 +280,7 @@ export const changeSignature = async (req, res) => {
       .from('signatures')
       .getPublicUrl(supabaseFileName);
 
-    // 6. Clean up local file
-    fs.unlinkSync(filePath);
+    // 6. Memory storage: no local file to clean up
 
     // 7. Update user table with signature path
     const { error: updateError } = await supabaseUser
@@ -349,9 +347,8 @@ export const changeProfilePhoto = async (req, res) => {
       }
     }
 
-    // 3. Read file buffer
-    const filePath = req.file.path;
-    const fileBuffer = fs.readFileSync(filePath);
+    // 3. Use provided file buffer instead of reading from disk
+    const fileBuffer = req.file.buffer;
     const fileExt = path.extname(req.file.originalname);
     const supabaseFileName = `profile-${req.user.id}-${Date.now()}${fileExt}`;
 
@@ -389,8 +386,7 @@ export const changeProfilePhoto = async (req, res) => {
       .from('profile-photos')
       .getPublicUrl(supabaseFileName);
 
-    // 6. Clean up local file
-    fs.unlinkSync(filePath);
+    // 6. Memory storage: no local file to clean up
 
     // 7. Update user table with profile photo path
     const { error: updateError } = await supabaseUser

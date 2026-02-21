@@ -3,28 +3,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-// إنشاء مجلد إذا لم يكن موجود
-const ensureDirectoryExists = (dirPath) => {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-};
-
-// إعداد التخزين العام
-const createStorage = (uploadPath, filenamePrefix = 'file') => {
-  return multer.diskStorage({
-    destination: (req, file, cb) => {
-      const fullPath = path.join('uploads', uploadPath);
-      ensureDirectoryExists(fullPath);
-      cb(null, fullPath);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const extension = path.extname(file.originalname);
-      cb(null, `${filenamePrefix}-${uniqueSuffix}${extension}`);
-    }
-  });
-};
+// Configure memory storage instead of disk storage
+const storage = multer.memoryStorage();
 
 // مرشحات الملفات المختلفة
 export const fileFilters = {
@@ -74,7 +54,9 @@ export const createUploader = (options = {}) => {
     fieldName = 'file'                // اسم الحقل في FormData
   } = options;
 
-  const storage = createStorage(uploadPath, filenamePrefix);
+  // Use the memory storage instance
+  // Note: uploadPath and filenamePrefix are kept in options for backward compatibility 
+  // but memoryStorage doesn't use them (we handle names in the controllers)
 
   const upload = multer({
     storage: storage,

@@ -33,26 +33,8 @@ const getAiServerUrl = async () => {
 
 
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'uploads', 'reports');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-
-    // Handle .nii.gz files specially
-    if (file.originalname.toLowerCase().endsWith('.nii.gz')) {
-      cb(null, file.fieldname + '-' + uniqueSuffix + '.nii.gz');
-    } else {
-      cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
-  }
-});
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage: storage,
@@ -85,18 +67,17 @@ const upload = multer({
 });
 
 // Helper function to call Flask API for medical file processing
-const callFlaskUploadAPI = async (filePath, clinicId, patientId, reportType, reportId) => {
+const callFlaskUploadAPI = async (fileBuffer, fileName, clinicId, patientId, reportType, reportId) => {
   try {
-    console.log('🔄 Calling Flask API for medical file processing...');
-    console.log('📋 Parameters:', { clinicId, patientId, reportType, reportId });
+    console.log('🔄 Calling Flask API for medical file processing (from memory)...');
+    console.log('📋 Parameters:', { fileName, clinicId, patientId, reportType, reportId });
 
     // Create FormData for multipart/form-data request
     const formData = new FormData();
 
-    // Add the file
-    const fileStream = fs.createReadStream(filePath);
-    formData.append('file', fileStream, {
-      filename: path.basename(filePath),
+    // Add the file buffer
+    formData.append('file', fileBuffer, {
+      filename: fileName,
       contentType: 'application/octet-stream'
     });
 
@@ -397,7 +378,8 @@ export const createReport = async (req, res) => {
         setImmediate(async () => {
           try {
             const flaskResults = await callFlaskUploadAPI(
-              req.file.path,
+              req.file.buffer,
+              req.file.originalname,
               clinicId,
               patient_id,
               report_type,
@@ -406,12 +388,6 @@ export const createReport = async (req, res) => {
 
             // Update report with Flask results
             await updateReportWithFlaskResults(report.report_id, flaskResults);
-
-            // Clean up local file after processing
-            if (fs.existsSync(req.file.path)) {
-              fs.unlinkSync(req.file.path);
-              console.log('🗑️ Local file cleaned up:', req.file.path);
-            }
 
           } catch (error) {
             console.error('❌ Background processing failed:', error);
@@ -709,7 +685,8 @@ export const generatePanoReportWithFlask = async (req, res) => {
       setImmediate(async () => {
         try {
           const flaskResults = await callFlaskUploadAPI(
-            req.file.path,
+            req.file.buffer,
+            req.file.originalname,
             clinic_id,
             patient_id,
             'pano',
@@ -718,12 +695,6 @@ export const generatePanoReportWithFlask = async (req, res) => {
 
           // Update report with Flask results
           await updateReportWithFlaskResults(report_id, flaskResults);
-
-          // Clean up local file after processing
-          if (fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-            console.log('🗑️ Local file cleaned up:', req.file.path);
-          }
 
         } catch (error) {
           console.error('❌ Background pano processing failed:', error);
