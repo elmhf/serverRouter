@@ -178,14 +178,19 @@ export async function notifyTreatingDoctors({
           user_id: doctorId,
           title: 'New Patient Assigned',
           message: `You have been assigned as treating doctor for ${patient_first_name} ${patient_last_name} in ${clinic_name || 'the clinic'}`,
-          type: 'Patient',
+          type: 'patient_update',
           meta_data: {
             patient_id,
             clinic_id,
             patient_name: `${patient_first_name} ${patient_last_name}`,
             added_by,
             action: 'patient_assigned',
-            is_treating_doctor: true
+            is_treating_doctor: true,
+            titleKey: 'notifications.patientAssignedTitle',
+            messageKey: 'notifications.patientAssignedMessage',
+            patient: `${patient_first_name} ${patient_last_name}`,
+            clinic: clinic_name || 'the clinic',
+            toastType: 'info'
           }
         })
       );
@@ -271,14 +276,20 @@ export async function notifyPatientUpdate({
         user_id: userId,
         title: 'Patient Information Updated',
         message: `Dr. ${doctor_first_name} ${doctor_last_name} updated information for patient ${patient_first_name} ${patient_last_name} in ${clinic_name || 'the clinic'}`,
-        type: 'Patient',
+        type: 'patient_update',
         meta_data: {
           patient_id,
           clinic_id,
           patient_name: `${patient_first_name} ${patient_last_name}`,
           updated_by,
           doctor_name: `${doctor_first_name} ${doctor_last_name}`,
-          action: 'patient_updated'
+          action: 'patient_updated',
+          titleKey: 'notifications.patientUpdatedTitle',
+          messageKey: 'notifications.patientUpdatedMessage',
+          doctor: `${doctor_first_name} ${doctor_last_name}`,
+          patient: `${patient_first_name} ${patient_last_name}`,
+          clinic: clinic_name || 'the clinic',
+          toastType: 'info'
         }
       })
     );

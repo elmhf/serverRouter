@@ -14,7 +14,7 @@ export const fileFilters = {
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('نوع الملف غير مدعوم. استعمل: JPG, PNG, GIF, SVG'));
+      cb(new Error('errors.fileTypeNotSupported||types:JPG, PNG, GIF, SVG'));
     }
   },
 
@@ -24,7 +24,7 @@ export const fileFilters = {
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('نوع الملف غير مدعوم. استعمل: PDF, DOC, DOCX'));
+      cb(new Error('errors.fileTypeNotSupported||types:PDF, DOC, DOCX'));
     }
   },
 
@@ -34,7 +34,7 @@ export const fileFilters = {
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('نوع الملف غير مدعوم للإمضاء. استعمل: SVG, PNG, JPG'));
+      cb(new Error('errors.fileTypeNotSupported||types:SVG, PNG, JPG'));
     }
   },
 

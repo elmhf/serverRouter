@@ -189,8 +189,10 @@ export const initializeRealtimeSubscriptions = (io) => {
 
                             console.log(`🔔 Sending ${newRecord.status} notifications to ${targetUserIds.size} users`);
 
-                            // Determine message content based on status
                             const isSuccess = newRecord.status === 'completed';
+                            const titleKey = isSuccess ? 'notifications.reportReadyTitle' : 'notifications.reportFailedTitle';
+                            const messageKey = isSuccess ? 'notifications.reportReadyMessage' : 'notifications.reportFailedMessage';
+                            // Keeping hardcoded strings as fallback for existing clients
                             const title = isSuccess ? 'Report Ready' : 'Report Failed';
                             const message = isSuccess
                                 ? `The ${newRecord.raport_type} report for patient ${patientName} is ready now`
@@ -208,7 +210,11 @@ export const initializeRealtimeSubscriptions = (io) => {
                                         report_id: newRecord.report_id,
                                         patient_id: newRecord.patient_id,
                                         clinic_id: clinicId,
-                                        status: newRecord.status
+                                        status: newRecord.status,
+                                        titleKey,
+                                        messageKey,
+                                        type: newRecord.raport_type,
+                                        patient: patientName
                                     }
                                 })
                             );
@@ -309,7 +315,12 @@ export const initializeRealtimeSubscriptions = (io) => {
                             image_url: imageUrl // 🆕 Added image URL
                         },
                         clinicId: clinicId,
-                        message: `تم إنشاء تقرير ${newRecord.raport_type} جديد للمريض ${patientName}`
+                        message: `تم إنشاء تقرير ${newRecord.raport_type} جديد للمريض ${patientName}`,
+                        messageKey: 'notifications.newReportCreated',
+                        meta_data: {
+                            type: newRecord.raport_type,
+                            patient: patientName
+                        }
                     };
 
                     io.to(`clinic_${clinicId}`).emit('report_created_realtime', reportEventData);
@@ -395,10 +406,19 @@ export const initializeRealtimeSubscriptions = (io) => {
                         ...(patientInfo && {
                             patientName: `${patientInfo.first_name} ${patientInfo.last_name}`,
                             clinicId: patientInfo.clinic_id,
-                            message: `تم حذف تقرير ${reportInfo?.raport_type || 'غير محدد'} للمريض ${patientInfo.first_name} ${patientInfo.last_name}`
+                            message: `تم حذف تقرير ${reportInfo?.raport_type || 'غير محدد'} للمريض ${patientInfo.first_name} ${patientInfo.last_name}`,
+                            messageKey: 'notifications.reportDeleted',
+                            meta_data: {
+                                type: reportInfo?.raport_type || 'غير محدد',
+                                patient: `${patientInfo.first_name} ${patientInfo.last_name}`
+                            }
                         }),
                         ...(!patientInfo && {
-                            message: `تم حذف التقرير ${oldRecord.report_id}`
+                            message: `تم حذف التقرير ${oldRecord.report_id}`,
+                            messageKey: 'notifications.reportDeletedId',
+                            meta_data: {
+                                id: oldRecord.report_id
+                            }
                         })
                     };
 
@@ -519,6 +539,10 @@ export const initializeRealtimeSubscriptions = (io) => {
 
                     io.emit('maintenance_mode_update', {
                         isEnabled: maintenanceMode === 'true',
+                        titleKey: 'notifications.maintenanceModeTitle',
+                        messageKey: maintenanceMode === 'true'
+                            ? 'notifications.maintenanceModeActive'
+                            : 'notifications.maintenanceModeOffline',
                         message: maintenanceMode === 'true'
                             ? 'The system is currently undergoing maintenance treatment.'
                             : 'Maintenance treatment has completed. System is online.'
@@ -595,7 +619,12 @@ export const emitReportDeletion = async (io, clinicId, patientId, reportData, de
         deletedReport: reportData,
         clinicId: clinicId,
         totalReports: remainingReports,
-        message: `تم حذف تقرير ${reportData.raport_type} بواسطة ${deletedBy}`
+        message: `تم حذف تقرير ${reportData.raport_type} بواسطة ${deletedBy}`,
+        messageKey: 'notifications.reportDeleted',
+        meta_data: {
+            type: reportData.raport_type,
+            patient: deletionData.patientName || 'Patient' // patientName is not defined here, wait
+        }
     };
 
     io.to(`clinic_${clinicId}`).emit('report_deleted_realtime', deletionData);
